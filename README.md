@@ -8,10 +8,21 @@
 
 > If you know pandas and NumPy, the concepts should transfer immediately.
 
-go-pandas is **experimental**. It aims for pandas/NumPy *conceptual*
-compatibility, not Python syntax compatibility: every important pandas or
-NumPy concept has one obvious Go equivalent, and unsupported APIs return
-explicit `ErrNotImplemented` errors instead of fake implementations.
+## What is it?
+
+go-pandas is a compatibility-oriented data toolkit: pandas-style
+`DataFrame`/`Series` and NumPy-style `NDArray` with the same concepts,
+names and behavior — verified against **golden outputs generated from
+real pandas and NumPy** (200+ test cases, pandas 2.3 / NumPy 2.0).
+
+## Status
+
+Experimental. API may change before v1.0. Designed for pandas/NumPy
+**conceptual** compatibility in Go, not Python syntax compatibility.
+Current compatibility: ~85% of tracked APIs in both matrices
+([full report](compat/coverage_report.md)).
+
+## Installation
 
 ```bash
 go get github.com/arturoeanton/go-pandas
@@ -21,10 +32,9 @@ go get github.com/arturoeanton/go-pandas
 import pd "github.com/arturoeanton/go-pandas"
 ```
 
-## Pandas → Go translation
+Zero dependencies outside the standard library.
 
-Go cannot express `df["age"]` or `df[df.age > 30]`, so go-pandas gives each
-idiom a direct equivalent:
+## Quick pandas translation
 
 | pandas | go-pandas |
 |---|---|
@@ -32,38 +42,34 @@ idiom a direct equivalent:
 | `df["age"]` | `df.Col("age")` |
 | `df[["name", "age"]]` | `df.Select("name", "age")` |
 | `df[df["age"] > 30]` | `df.Where(pd.Col("age").Gt(30))` |
-| `df.query("age > 30 and c == 'AR'")` | `df.Query("age > 30 and c == \"AR\"")` |
-| `df.loc[:, ["name"]]` | `df.Loc().Cols("name").Get()` |
-| `df.iloc[0:10, 1:3]` | `df.ILoc().Rows(pd.Slice(0, 10)).ColsRange(pd.Slice(1, 3)).Get()` |
+| `df.query("a > 1 and s.str.contains('x')")` | `df.Query(...)` — same string |
 | `df["total"] = df.price * df.qty` | `df.AssignExpr("total", pd.Col("price").Mul(pd.Col("qty")))` |
 | `df.groupby("c")["v"].mean()` | `df.GroupBy("c").Mean("v")` |
-| `df.merge(right, on="id")` | `df.Merge(right, pd.MergeOptions{On: []string{"id"}})` |
-| `pd.concat([a, b])` | `pd.Concat([]*pd.DataFrame{a, b})` |
-| `df.sort_values("v", ascending=False)` | `df.SortValues("v", false)` |
-| `df.dropna()` / `df.fillna(...)` | `df.DropNA()` / `df.FillNA(map[string]any{...})` |
-| `pd.read_csv(path)` | `pd.ReadCSV(path)` |
-| `s.str.upper()` / `s.dt.year` | `s.Str().Upper()` / `s.Dt().Year()` |
+| `pd.merge(l, r, on="id", how="left")` | `pd.Merge(l, r, pd.MergeOptions{On: []string{"id"}, How: "left"})` |
+| `df.dropna(thresh=2)` | `df.DropNA(pd.DropNAThresh(2))` |
+| `s.rank(method="dense")` | `s.Rank(pd.RankMethod("dense"))` |
+| `s.dt.quarter` / `s.str.match(p)` | `s.Dt().Quarter()` / `s.Str().Match(p)` |
 
-Full matrix: [compat/pandas_matrix.md](compat/pandas_matrix.md)
+Full guide: [docs/pandas_translation_guide.md](docs/pandas_translation_guide.md)
 
-## NumPy → Go translation
+## Quick NumPy translation
 
 | NumPy | go-pandas |
 |---|---|
-| `np.array([1, 2, 3])` | `pd.Array([]float64{1, 2, 3})` |
 | `np.arange(6).reshape(2, 3)` | `pd.Arange(6).Reshape(2, 3)` |
-| `a + 10` | `a.AddScalar(10)` |
 | `a + b` (broadcasting) | `a.Add(b)` |
 | `a[0:2, 1:3]` | `a.Slice(pd.Slice(0, 2), pd.Slice(1, 3))` |
-| `a.T` | `a.T()` |
-| `a.sum(axis=0)` | `a.Sum(0)` |
-| `np.matmul(a, b)` | `pd.MatMul(a, b)` |
-| `np.where(cond, x, y)` | `ndarray.Where(cond, x, y)` |
-| `np.random.randn(2, 3)` | `pd.Randn(2, 3)` |
+| `a[a > 0]` | `a.Mask(a.GtScalar(0))` |
+| `a.sum(axis=0)` | `a.Sum(pd.Axis(0))` |
+| `a.std(ddof=1)` | `a.StdDDof(1)` |
+| `np.sqrt(a)` / `np.clip(a, 0, 1)` | `pd.Sqrt(a)` / `pd.Clip(a, 0, 1)` |
+| `np.concatenate([a, b], 0)` | `pd.Concatenate([]*pd.NDArray{a, b}, 0)` |
+| `np.sort(a)` / `np.unique(a)` | `a.Sort()` / `pd.Unique(a)` |
+| `np.where(m, a, b)` | `pd.WhereArray(m, a, b)` |
 
-Full matrix: [compat/numpy_matrix.md](compat/numpy_matrix.md)
+Full guide: [docs/numpy_translation_guide.md](docs/numpy_translation_guide.md)
 
-## DataFrame
+## DataFrame examples
 
 ```go
 df, _ := pd.DataFrameFromRecords([]map[string]any{
@@ -72,140 +78,141 @@ df, _ := pd.DataFrameFromRecords([]map[string]any{
     {"country": "BR", "name": "Joao", "age": 35, "salary": 1500.0},
 }, pd.WithColumnOrder("country", "name", "age", "salary"))
 
-result, _ := df.Where(pd.Col("age").Gt(30))
-result, _ = result.Select("country", "name", "salary")
-result, _ = result.SortValues("salary", false)
-fmt.Println(result)
-//    country  name  salary
-// 1  AR       Luis  2000
-// 2  BR       Joao  1500
-//
-// [2 rows x 3 columns]
+adults, _ := df.Query(`age > 30 and country in ["AR", "BR"]`)
+top, _ := adults.SortValues("salary", false)
+fmt.Println(top.Head(5))
+
+stats, _ := df.Corr()          // correlation matrix
+clean := df.DropNA()           // missing-data handling
+byType, _ := df.SelectDTypes(pd.Include(pd.Number))
 ```
 
-## Series
+## Series examples
 
 ```go
-s := pd.SeriesOf("age", []int{10, 20, 30})
-mean, _ := s.Mean()            // 20
-mask := s.Gt(15)               // Bool series
-clean := s.FillNA(0).DropNA()  // missing-data helpers
+s := pd.SeriesOf("v", []int{3, 1, 4, 1, 5})
+ranks, _ := s.Rank(pd.RankMethod("dense"))
+change, _ := s.PctChange(1)
+running, _ := s.Cumsum()
+counts := s.ValueCounts()
 ```
 
-Missing values follow the pandas model: `nil`, `pd.NA()`, `pd.NaT()` and
-`NaN` are all missing; reductions skip them by default (`pd.SkipNA(false)`
-to opt out); comparisons with missing values are `false`; `<NA>` prints in
-tables.
-
-## NDArray
+## NumPy-like NDArray examples
 
 ```go
-a, _ := pd.FromSlice([]float64{1, 2, 3, 4, 5, 6}, 2, 3)
-b := pd.Array([]float64{10, 20, 30})
-c, _ := a.Add(b) // NumPy broadcasting: (2,3) + (3,) -> (2,3)
-fmt.Println(c)
-// array([[11, 22, 33],
-//        [14, 25, 36]])
+m, _ := pd.Arange(6).Reshape(2, 3)
+c, _ := m.Add(pd.Array([]float64{10, 20, 30})) // broadcasting
+view, _ := m.Slice(pd.All(), pd.Slice(1, 3))   // views share data
+norm := m.SubScalar(m.MeanAll()).DivScalar(m.StdAll())
+tr, _ := norm.T()
+prod, _ := pd.MatMul(m, tr)
+_ = c; _ = view; _ = prod
 ```
-
-Slicing, `Reshape` and `Transpose` return **views** backed by strides —
-mutate a view and the base array changes; call `Copy()` for independence.
-Broadcasting uses stride-0 views, never materialized copies.
 
 ## CSV / JSON
 
 ```go
 df, _ := pd.ReadCSV("people.csv",
+    pd.WithUseCols("name", "age"),
+    pd.WithNRows(1000),
     pd.WithParseDates("joined"),
-    pd.WithNAValues("", "NA", "null"))
-_ = df.ToCSV("out.csv")
-_ = df.ToJSON("out.json")   // records orientation
-df2, _ := pd.ReadNDJSON("events.ndjson")
+    pd.WithNAValues("-"), pd.WithKeepDefaultNA(true))
+_ = df.ToJSON("out.json", pd.JSONOrient("split")) // records/split/columns/values
 ```
 
 ## GroupBy
 
 ```go
-grouped, _ := df.GroupBy("country").Agg(map[string]string{
-    "salary": "mean",
-    "age":    "max",
-})
-//    country  age_max  salary_mean
-// 0  AR       40       1500
-// 1  BR       35       1500
+out, _ := df.GroupBy("country", "dept").AggList(map[string][]string{
+    "salary": {"mean", "max"},
+    "age":    {"min"},
+}) // columns: country, dept, age_min, salary_mean, salary_max
 ```
 
-## Merge
+## Merge / Join / Concat
 
 ```go
-merged, _ := left.Merge(right, pd.MergeOptions{
-    On:  []string{"id"},
-    How: "outer", // inner, left, right, outer, cross
+merged, _ := pd.Merge(left, right, pd.MergeOptions{
+    On: []string{"id"}, How: "outer",
+    Validate: "one_to_one", Indicator: true,
 })
+stacked, _ := pd.Concat(frames, pd.IgnoreIndex(true), pd.Join("inner"))
+```
+
+## Missing values
+
+`nil`, `NaN`, `pd.NA()` and `pd.NaT()` are missing; reductions skip them;
+comparisons with them are false; they sort last and print as `<NA>`.
+Details: [docs/missing_values.md](docs/missing_values.md)
+
+## DTypes
+
+`pd.ParseDType("datetime64[ns]")`, `s.Astype(pd.Float64)`,
+`df.Astype(map[string]pd.DType{...})`, `df.SelectDTypes(pd.Include(pd.Number))`.
+Details: [docs/dtype_semantics.md](docs/dtype_semantics.md)
+
+## loc / iloc
+
+```go
+df.ILoc().Rows(0, 2, pd.Slice(4, 8)).Cols(pd.Slice(1, 3)).Get() // positional, [start:stop)
+df.Loc().Rows(pd.LabelSlice("a", "d")).Cols("name").Get()       // labels, inclusive
 ```
 
 ## Rolling windows
 
 ```go
-ma, _ := prices.Rolling(3, pd.RollingMinPeriods(1)).Mean()
-sums, _ := df.Rolling(2).Sum() // per numeric column
+ma, _ := prices.Rolling(20, pd.MinPeriods(1)).Mean()
+vol, _ := prices.Rolling(20).Std()
+cum, _ := prices.Expanding().Max()
 ```
 
-## Examples
-
-```bash
-go run ./examples/basic
-go run ./examples/pandas_compat
-go run ./examples/numpy_compat
-go run ./examples/groupby
-go run ./examples/merge
-go run ./examples/io_csv
-go run ./examples/ndarray
-go run ./examples/rolling
-```
-
-## Compatibility testing
-
-Core behavior is verified against golden outputs generated from real
-pandas/NumPy (`compat/goldens/*.json`, regenerate with
-`make regen-goldens`; Python is not needed for `go test ./...`). Matrices
-documenting per-API status:
+## Compatibility matrix
 
 - [compat/pandas_matrix.md](compat/pandas_matrix.md)
 - [compat/numpy_matrix.md](compat/numpy_matrix.md)
+- [compat/coverage_report.md](compat/coverage_report.md)
+
+## Known differences
+
+Operator syntax, NA comparison rules, positional-vs-label slicing,
+alignment, dtype simplifications and more:
+[compat/known_differences.md](compat/known_differences.md)
+
+## Performance
+
+Columnar storage, hash joins/grouping, stride-based zero-copy
+broadcasting. Benchmarks and known bottlenecks:
+[docs/performance.md](docs/performance.md)
+
+```bash
+go test ./benchmarks/ -bench=. -benchmem
+```
 
 ## Roadmap
 
-- **v0.1** (this release): Series, DataFrame, float64 NDArray, indexes,
-  missing values, expressions, groupby, merge/join/concat, reshape basics,
-  rolling, CSV/JSON/NDJSON, golden tests.
-- **v0.2**: typed NDArrays (int/bool), more axis reductions and ufuncs,
-  sort/search, Gonum linalg adapter.
-- **v0.3**: better MultiIndex, categorical dtype, timezone-aware
-  datetimes, resampling, pivot_table, stronger query parser.
-- **v0.4**: Arrow/DuckDB/Parquet adapters, typed column storage, SIMD.
-- **v0.5**: Excel/SQL IO, time-based rolling, ewm, nullable typed dtypes.
-- **v1.0**: stable API and production-ready performance.
+[docs/roadmap.md](docs/roadmap.md) — v0.3 pandas depth (MultiIndex,
+categorical, resample), v0.4 performance backends (typed storage, Arrow,
+gonum), v1.0 stable API.
 
-## Performance notes
+## Development
 
-v0.1 is correctness-first, but the architecture avoids the classic traps:
-columnar storage with stable column order, hash-based groupby and merge,
-stride-based broadcasting and views without copies, no reflection in hot
-loops (reflection is used only in `DataFrameFromStructs`). Series values
-are stored as `[]any` in v0.1; typed column storage is planned for v0.4.
+```bash
+go test ./...            # unit + golden tests (no Python needed)
+go test ./... -race
+go test ./fuzz/ -fuzz=FuzzReadCSV -fuzztime=30s
+go run ./examples/basic  # and 7 more example programs
+```
 
-## Limitations
+## Regenerating compatibility goldens
 
-- NDArray stores float64 only (comparisons yield `*BoolArray`).
-- Series/DataFrame arithmetic aligns by position, not by index labels.
-- `Stack`, `Unstack` and `Resample` return `ErrNotImplemented`.
-- `MultiIndex` supports construction and display only.
-- No timezone handling beyond what `time.Time` carries.
-- Map-based constructors order columns alphabetically unless
-  `pd.WithColumnOrder` is given (Go maps are unordered).
-- `Series.ValueCounts`/`Series.Describe` return a `Series` (pandas
-  returns a Series from `value_counts` too; the DataFrame form would
-  create an import cycle between the series and dataframe packages).
+The golden files under `compat/goldens/` are generated from real
+pandas/NumPy and committed, so `go test ./...` never needs Python.
+To regenerate them (requires python3 with pandas and numpy):
+
+```bash
+make regen-goldens
+# or the full loop:
+python3 compat/python/run_compat_suite.py
+```
 
 License: Apache 2.0.
