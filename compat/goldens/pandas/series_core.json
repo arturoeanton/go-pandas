@@ -1,0 +1,340 @@
+{
+ "suite": "pandas.series_core",
+ "pandas_version": "2.3.3",
+ "cases": [
+  {
+   "name": "head_3",
+   "operation": "s.head(3)",
+   "expected": {
+    "values": [
+     3.0,
+     1.0,
+     4.0
+    ]
+   }
+  },
+  {
+   "name": "astype_float",
+   "operation": "si.astype('float64')",
+   "expected": {
+    "values": [
+     3.0,
+     1.0,
+     4.0,
+     1.0,
+     5.0
+    ]
+   }
+  },
+  {
+   "name": "isna",
+   "operation": "s.isna()",
+   "expected": {
+    "values": [
+     false,
+     false,
+     false,
+     true,
+     false
+    ]
+   }
+  },
+  {
+   "name": "notna",
+   "operation": "s.notna()",
+   "expected": {
+    "values": [
+     true,
+     true,
+     true,
+     false,
+     true
+    ]
+   }
+  },
+  {
+   "name": "dropna",
+   "operation": "s.dropna()",
+   "expected": {
+    "values": [
+     3.0,
+     1.0,
+     4.0,
+     5.0
+    ]
+   }
+  },
+  {
+   "name": "fillna_0",
+   "operation": "s.fillna(0)",
+   "expected": {
+    "values": [
+     3.0,
+     1.0,
+     4.0,
+     0.0,
+     5.0
+    ]
+   }
+  },
+  {
+   "name": "unique",
+   "operation": "si.unique()",
+   "expected": {
+    "values": [
+     3,
+     1,
+     4,
+     5
+    ]
+   }
+  },
+  {
+   "name": "nunique_series",
+   "operation": "si.nunique()",
+   "expected": {
+    "scalar": 4.0
+   }
+  },
+  {
+   "name": "value_counts",
+   "operation": "si.value_counts()",
+   "expected": {
+    "values": [
+     2,
+     1,
+     1,
+     1
+    ],
+    "index": [
+     "1",
+     "3",
+     "4",
+     "5"
+    ]
+   }
+  },
+  {
+   "name": "sort_values",
+   "operation": "s.sort_values()",
+   "expected": {
+    "values": [
+     1.0,
+     3.0,
+     4.0,
+     5.0,
+     null
+    ]
+   }
+  },
+  {
+   "name": "mean",
+   "operation": "s.mean()",
+   "expected": {
+    "scalar": 3.25
+   }
+  },
+  {
+   "name": "median",
+   "operation": "s.median()",
+   "expected": {
+    "scalar": 3.5
+   }
+  },
+  {
+   "name": "std",
+   "operation": "s.std()",
+   "expected": {
+    "scalar": 1.707825127659933
+   }
+  },
+  {
+   "name": "var",
+   "operation": "s.var()",
+   "expected": {
+    "scalar": 2.9166666666666665
+   }
+  },
+  {
+   "name": "quantile_25",
+   "operation": "s.quantile(0.25)",
+   "expected": {
+    "scalar": 2.5
+   }
+  },
+  {
+   "name": "sum",
+   "operation": "s.sum()",
+   "expected": {
+    "scalar": 13.0
+   }
+  },
+  {
+   "name": "between_2_4",
+   "operation": "si.between(2, 4)",
+   "expected": {
+    "values": [
+     true,
+     false,
+     true,
+     false,
+     false
+    ]
+   }
+  },
+  {
+   "name": "isin",
+   "operation": "si.isin([1, 5])",
+   "expected": {
+    "values": [
+     false,
+     true,
+     false,
+     true,
+     true
+    ]
+   }
+  },
+  {
+   "name": "cumsum",
+   "operation": "s.cumsum()",
+   "expected": {
+    "values": [
+     3.0,
+     4.0,
+     8.0,
+     null,
+     13.0
+    ]
+   }
+  },
+  {
+   "name": "cummax",
+   "operation": "s.cummax()",
+   "expected": {
+    "values": [
+     3.0,
+     3.0,
+     4.0,
+     null,
+     5.0
+    ]
+   }
+  },
+  {
+   "name": "cumprod",
+   "operation": "si.cumprod()",
+   "expected": {
+    "values": [
+     3,
+     3,
+     12,
+     12,
+     60
+    ]
+   }
+  },
+  {
+   "name": "diff_1",
+   "operation": "s.diff()",
+   "expected": {
+    "values": [
+     null,
+     -2.0,
+     3.0,
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "name": "pct_change_1",
+   "operation": "s.pct_change()",
+   "expected": {
+    "values": [
+     null,
+     -0.6666666666666667,
+     3.0,
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "name": "rank_average",
+   "operation": "si.rank()",
+   "expected": {
+    "values": [
+     3.0,
+     1.5,
+     4.0,
+     1.5,
+     5.0
+    ]
+   }
+  },
+  {
+   "name": "rank_dense",
+   "operation": "si.rank(method='dense')",
+   "expected": {
+    "values": [
+     2.0,
+     1.0,
+     3.0,
+     1.0,
+     4.0
+    ]
+   }
+  },
+  {
+   "name": "clip_2_4",
+   "operation": "si.clip(2, 4)",
+   "expected": {
+    "values": [
+     3,
+     2,
+     4,
+     2,
+     4
+    ]
+   }
+  },
+  {
+   "name": "round_0",
+   "operation": "s.round(0)",
+   "expected": {
+    "values": [
+     3.0,
+     1.0,
+     4.0,
+     null,
+     5.0
+    ]
+   }
+  },
+  {
+   "name": "abs",
+   "operation": "neg.abs()",
+   "expected": {
+    "values": [
+     1.5,
+     2.0,
+     3.0
+    ]
+   }
+  },
+  {
+   "name": "shift_1",
+   "operation": "si.shift(1)",
+   "expected": {
+    "values": [
+     null,
+     3.0,
+     1.0,
+     4.0,
+     1.0
+    ]
+   }
+  }
+ ]
+}

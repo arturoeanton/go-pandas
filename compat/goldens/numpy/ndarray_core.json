@@ -1,0 +1,229 @@
+{
+ "suite": "numpy.ndarray_core",
+ "numpy_version": "2.0.2",
+ "cases": [
+  {
+   "name": "reshape_2x3",
+   "operation": "a.reshape(2,3)",
+   "expected": {
+    "shape": [
+     2,
+     3
+    ],
+    "data": [
+     0.0,
+     1.0,
+     2.0,
+     3.0,
+     4.0,
+     5.0
+    ]
+   }
+  },
+  {
+   "name": "reshape_infer",
+   "operation": "a.reshape(3,-1)",
+   "expected": {
+    "shape": [
+     3,
+     2
+    ],
+    "data": [
+     0.0,
+     1.0,
+     2.0,
+     3.0,
+     4.0,
+     5.0
+    ]
+   }
+  },
+  {
+   "name": "flatten",
+   "operation": "m.flatten()",
+   "expected": {
+    "shape": [
+     6
+    ],
+    "data": [
+     0.0,
+     1.0,
+     2.0,
+     3.0,
+     4.0,
+     5.0
+    ]
+   }
+  },
+  {
+   "name": "ravel_t",
+   "operation": "m.T.ravel()",
+   "expected": {
+    "shape": [
+     6
+    ],
+    "data": [
+     0.0,
+     3.0,
+     1.0,
+     4.0,
+     2.0,
+     5.0
+    ]
+   }
+  },
+  {
+   "name": "transpose",
+   "operation": "m.T",
+   "expected": {
+    "shape": [
+     3,
+     2
+    ],
+    "data": [
+     0.0,
+     3.0,
+     1.0,
+     4.0,
+     2.0,
+     5.0
+    ]
+   }
+  },
+  {
+   "name": "squeeze",
+   "operation": "np.squeeze(ones((1,3,1)))",
+   "expected": {
+    "shape": [
+     3
+    ],
+    "data": [
+     1.0,
+     1.0,
+     1.0
+    ]
+   }
+  },
+  {
+   "name": "expand_dims",
+   "operation": "np.expand_dims(v, 0)",
+   "expected": {
+    "shape": [
+     1,
+     3
+    ],
+    "data": [
+     1.0,
+     2.0,
+     3.0
+    ]
+   }
+  },
+  {
+   "name": "concatenate_axis0",
+   "operation": "np.concatenate([sq, sq], 0)",
+   "expected": {
+    "shape": [
+     4,
+     2
+    ],
+    "data": [
+     1.0,
+     2.0,
+     3.0,
+     4.0,
+     1.0,
+     2.0,
+     3.0,
+     4.0
+    ]
+   }
+  },
+  {
+   "name": "concatenate_axis1",
+   "operation": "np.concatenate([sq, sq], 1)",
+   "expected": {
+    "shape": [
+     2,
+     4
+    ],
+    "data": [
+     1.0,
+     2.0,
+     1.0,
+     2.0,
+     3.0,
+     4.0,
+     3.0,
+     4.0
+    ]
+   }
+  },
+  {
+   "name": "stack_axis0",
+   "operation": "np.stack([v, w], 0)",
+   "expected": {
+    "shape": [
+     2,
+     3
+    ],
+    "data": [
+     1.0,
+     2.0,
+     3.0,
+     4.0,
+     5.0,
+     6.0
+    ]
+   }
+  },
+  {
+   "name": "hstack",
+   "operation": "np.hstack([v, w])",
+   "expected": {
+    "shape": [
+     6
+    ],
+    "data": [
+     1.0,
+     2.0,
+     3.0,
+     4.0,
+     5.0,
+     6.0
+    ]
+   }
+  },
+  {
+   "name": "vstack",
+   "operation": "np.vstack([v, w])",
+   "expected": {
+    "shape": [
+     2,
+     3
+    ],
+    "data": [
+     1.0,
+     2.0,
+     3.0,
+     4.0,
+     5.0,
+     6.0
+    ]
+   }
+  },
+  {
+   "name": "astype_int",
+   "operation": "np.array([1.7,-2.7]).astype(int)",
+   "expected": {
+    "shape": [
+     2
+    ],
+    "data": [
+     1.0,
+     -2.0
+    ]
+   }
+  }
+ ]
+}

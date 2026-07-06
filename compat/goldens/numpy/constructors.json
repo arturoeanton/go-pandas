@@ -1,0 +1,194 @@
+{
+ "suite": "numpy.constructors",
+ "numpy_version": "2.0.2",
+ "cases": [
+  {
+   "name": "array_1d",
+   "operation": "np.array([1,2,3])",
+   "expected": {
+    "shape": [
+     3
+    ],
+    "data": [
+     1.0,
+     2.0,
+     3.0
+    ]
+   }
+  },
+  {
+   "name": "array_2d",
+   "operation": "np.array([[1,2],[3,4]])",
+   "expected": {
+    "shape": [
+     2,
+     2
+    ],
+    "data": [
+     1.0,
+     2.0,
+     3.0,
+     4.0
+    ]
+   }
+  },
+  {
+   "name": "zeros_2x3",
+   "operation": "np.zeros((2,3))",
+   "expected": {
+    "shape": [
+     2,
+     3
+    ],
+    "data": [
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ]
+   }
+  },
+  {
+   "name": "ones_2x3",
+   "operation": "np.ones((2,3))",
+   "expected": {
+    "shape": [
+     2,
+     3
+    ],
+    "data": [
+     1.0,
+     1.0,
+     1.0,
+     1.0,
+     1.0,
+     1.0
+    ]
+   }
+  },
+  {
+   "name": "full_7",
+   "operation": "np.full((2,3), 7)",
+   "expected": {
+    "shape": [
+     2,
+     3
+    ],
+    "data": [
+     7.0,
+     7.0,
+     7.0,
+     7.0,
+     7.0,
+     7.0
+    ]
+   }
+  },
+  {
+   "name": "arange_0_10_2",
+   "operation": "np.arange(0, 10, 2)",
+   "expected": {
+    "shape": [
+     5
+    ],
+    "data": [
+     0.0,
+     2.0,
+     4.0,
+     6.0,
+     8.0
+    ]
+   }
+  },
+  {
+   "name": "linspace_0_1_5",
+   "operation": "np.linspace(0, 1, 5)",
+   "expected": {
+    "shape": [
+     5
+    ],
+    "data": [
+     0.0,
+     0.25,
+     0.5,
+     0.75,
+     1.0
+    ]
+   }
+  },
+  {
+   "name": "logspace_0_2_3",
+   "operation": "np.logspace(0, 2, 3)",
+   "expected": {
+    "shape": [
+     3
+    ],
+    "data": [
+     1.0,
+     10.0,
+     100.0
+    ]
+   }
+  },
+  {
+   "name": "eye_3",
+   "operation": "np.eye(3)",
+   "expected": {
+    "shape": [
+     3,
+     3
+    ],
+    "data": [
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0
+    ]
+   }
+  },
+  {
+   "name": "identity_3",
+   "operation": "np.identity(3)",
+   "expected": {
+    "shape": [
+     3,
+     3
+    ],
+    "data": [
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0,
+     0.0,
+     0.0,
+     0.0,
+     1.0
+    ]
+   }
+  },
+  {
+   "name": "diag",
+   "operation": "np.diag([2,3])",
+   "expected": {
+    "shape": [
+     2,
+     2
+    ],
+    "data": [
+     2.0,
+     0.0,
+     0.0,
+     3.0
+    ]
+   }
+  }
+ ]
+}

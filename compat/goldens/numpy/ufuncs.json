@@ -1,0 +1,256 @@
+{
+ "suite": "numpy.ufuncs",
+ "numpy_version": "2.0.2",
+ "cases": [
+  {
+   "name": "abs",
+   "operation": "np.abs(neg)",
+   "expected": {
+    "shape": [
+     3
+    ],
+    "data": [
+     1.5,
+     2.5,
+     3.5
+    ]
+   }
+  },
+  {
+   "name": "sqrt",
+   "operation": "np.sqrt([1,4,9])",
+   "expected": {
+    "shape": [
+     3
+    ],
+    "data": [
+     1.0,
+     2.0,
+     3.0
+    ]
+   }
+  },
+  {
+   "name": "exp",
+   "operation": "np.exp([0,1])",
+   "expected": {
+    "shape": [
+     2
+    ],
+    "data": [
+     1.0,
+     2.718281828459045
+    ]
+   }
+  },
+  {
+   "name": "log",
+   "operation": "np.log([1,e])",
+   "expected": {
+    "shape": [
+     2
+    ],
+    "data": [
+     0.0,
+     1.0
+    ]
+   }
+  },
+  {
+   "name": "log10",
+   "operation": "np.log10([1,10,100])",
+   "expected": {
+    "shape": [
+     3
+    ],
+    "data": [
+     0.0,
+     1.0,
+     2.0
+    ]
+   }
+  },
+  {
+   "name": "sin",
+   "operation": "np.sin([0, pi/2])",
+   "expected": {
+    "shape": [
+     2
+    ],
+    "data": [
+     0.0,
+     1.0
+    ]
+   }
+  },
+  {
+   "name": "cos",
+   "operation": "np.cos([0, pi])",
+   "expected": {
+    "shape": [
+     2
+    ],
+    "data": [
+     1.0,
+     -1.0
+    ]
+   }
+  },
+  {
+   "name": "tan",
+   "operation": "np.tan([0, pi/4])",
+   "expected": {
+    "shape": [
+     2
+    ],
+    "data": [
+     0.0,
+     0.9999999999999999
+    ]
+   }
+  },
+  {
+   "name": "floor",
+   "operation": "np.floor(neg)",
+   "expected": {
+    "shape": [
+     3
+    ],
+    "data": [
+     -2.0,
+     2.0,
+     -4.0
+    ]
+   }
+  },
+  {
+   "name": "ceil",
+   "operation": "np.ceil(neg)",
+   "expected": {
+    "shape": [
+     3
+    ],
+    "data": [
+     -1.0,
+     3.0,
+     -3.0
+    ]
+   }
+  },
+  {
+   "name": "round",
+   "operation": "np.round(neg)",
+   "expected": {
+    "shape": [
+     3
+    ],
+    "data": [
+     -2.0,
+     2.0,
+     -4.0
+    ]
+   }
+  },
+  {
+   "name": "clip",
+   "operation": "np.clip(neg, -2, 2)",
+   "expected": {
+    "shape": [
+     3
+    ],
+    "data": [
+     -1.5,
+     2.0,
+     -2.0
+    ]
+   }
+  },
+  {
+   "name": "isnan",
+   "operation": "np.isnan(with_nan)",
+   "expected": {
+    "shape": [
+     4
+    ],
+    "bool_data": [
+     false,
+     true,
+     false,
+     false
+    ]
+   }
+  },
+  {
+   "name": "isfinite",
+   "operation": "np.isfinite(with_nan)",
+   "expected": {
+    "shape": [
+     4
+    ],
+    "bool_data": [
+     true,
+     false,
+     true,
+     false
+    ]
+   }
+  },
+  {
+   "name": "isinf",
+   "operation": "np.isinf(with_nan)",
+   "expected": {
+    "shape": [
+     4
+    ],
+    "bool_data": [
+     false,
+     false,
+     false,
+     true
+    ]
+   }
+  },
+  {
+   "name": "maximum",
+   "operation": "np.maximum(v, [2,1,4])",
+   "expected": {
+    "shape": [
+     3
+    ],
+    "data": [
+     2.0,
+     2.0,
+     4.0
+    ]
+   }
+  },
+  {
+   "name": "minimum",
+   "operation": "np.minimum(v, [2,1,4])",
+   "expected": {
+    "shape": [
+     3
+    ],
+    "data": [
+     1.0,
+     1.0,
+     3.0
+    ]
+   }
+  },
+  {
+   "name": "power",
+   "operation": "np.power(v, 2)",
+   "expected": {
+    "shape": [
+     3
+    ],
+    "data": [
+     1.0,
+     4.0,
+     9.0
+    ]
+   }
+  }
+ ]
+}

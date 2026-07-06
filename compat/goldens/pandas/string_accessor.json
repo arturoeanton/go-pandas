@@ -1,0 +1,136 @@
+{
+ "suite": "pandas.string_accessor",
+ "pandas_version": "2.3.3",
+ "cases": [
+  {
+   "name": "contains_o",
+   "operation": "s.str.contains('o')",
+   "expected": {
+    "values": [
+     true,
+     true,
+     true,
+     true,
+     null
+    ]
+   }
+  },
+  {
+   "name": "lower",
+   "operation": "s.str.lower()",
+   "expected": {
+    "values": [
+     "hello",
+     "world",
+     " go ",
+     "anaconda",
+     null
+    ]
+   }
+  },
+  {
+   "name": "upper",
+   "operation": "s.str.upper()",
+   "expected": {
+    "values": [
+     "HELLO",
+     "WORLD",
+     " GO ",
+     "ANACONDA",
+     null
+    ]
+   }
+  },
+  {
+   "name": "len",
+   "operation": "s.str.len()",
+   "expected": {
+    "values": [
+     5.0,
+     5.0,
+     4.0,
+     8.0,
+     null
+    ]
+   }
+  },
+  {
+   "name": "strip",
+   "operation": "s.str.strip()",
+   "expected": {
+    "values": [
+     "Hello",
+     "world",
+     "Go",
+     "Anaconda",
+     null
+    ]
+   }
+  },
+  {
+   "name": "replace_l_L",
+   "operation": "s.str.replace('l','L')",
+   "expected": {
+    "values": [
+     "HeLLo",
+     "worLd",
+     " Go ",
+     "Anaconda",
+     null
+    ]
+   }
+  },
+  {
+   "name": "startswith_A",
+   "operation": "s.str.startswith('A')",
+   "expected": {
+    "values": [
+     false,
+     false,
+     false,
+     true,
+     null
+    ]
+   }
+  },
+  {
+   "name": "endswith_d",
+   "operation": "s.str.endswith('d')",
+   "expected": {
+    "values": [
+     false,
+     true,
+     false,
+     false,
+     null
+    ]
+   }
+  },
+  {
+   "name": "get_0",
+   "operation": "s.str.get(0)",
+   "expected": {
+    "values": [
+     "H",
+     "w",
+     " ",
+     "A",
+     null
+    ]
+   }
+  },
+  {
+   "name": "slice_1_3",
+   "operation": "s.str.slice(1, 3)",
+   "expected": {
+    "values": [
+     "el",
+     "or",
+     "Go",
+     "na",
+     null
+    ]
+   }
+  }
+ ]
+}

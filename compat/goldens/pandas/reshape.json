@@ -1,0 +1,108 @@
+{
+ "suite": "pandas.reshape",
+ "pandas_version": "2.3.3",
+ "cases": [
+  {
+   "name": "melt",
+   "operation": "grades.melt(id_vars=['name'])",
+   "expected": {
+    "columns": [
+     "name",
+     "variable",
+     "value"
+    ],
+    "rows": [
+     [
+      "Ana",
+      "math",
+      9.0
+     ],
+     [
+      "Luis",
+      "math",
+      7.0
+     ],
+     [
+      "Ana",
+      "bio",
+      8.0
+     ],
+     [
+      "Luis",
+      "bio",
+      6.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "melt_value_vars",
+   "operation": "grades.melt(id_vars=['name'], value_vars=['math'])",
+   "expected": {
+    "columns": [
+     "name",
+     "variable",
+     "value"
+    ],
+    "rows": [
+     [
+      "Ana",
+      "math",
+      9.0
+     ],
+     [
+      "Luis",
+      "math",
+      7.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "pivot",
+   "operation": "long.pivot(index, columns, values)",
+   "expected": {
+    "columns": [
+     "name",
+     "bio",
+     "math"
+    ],
+    "rows": [
+     [
+      "Ana",
+      8.0,
+      9.0
+     ],
+     [
+      "Luis",
+      6.0,
+      7.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "pivot_table_mean",
+   "operation": "dup.pivot_table(aggfunc=mean, fill_value=0)",
+   "expected": {
+    "columns": [
+     "country",
+     "eng",
+     "sales"
+    ],
+    "rows": [
+     [
+      "AR",
+      1500.0,
+      800.0
+     ],
+     [
+      "BR",
+      1500.0,
+      0.0
+     ]
+    ]
+   }
+  }
+ ]
+}

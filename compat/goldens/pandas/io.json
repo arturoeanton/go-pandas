@@ -1,0 +1,151 @@
+{
+ "suite": "pandas.io",
+ "pandas_version": "2.3.3",
+ "cases": [
+  {
+   "name": "read_csv_basic",
+   "operation": "pd.read_csv(basic)",
+   "expected": {
+    "columns": [
+     "name",
+     "age",
+     "score"
+    ],
+    "rows": [
+     [
+      "Ana",
+      30,
+      9.5
+     ],
+     [
+      "Luis",
+      40,
+      8.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "read_csv_na",
+   "operation": "pd.read_csv(na)",
+   "expected": {
+    "columns": [
+     "a",
+     "b"
+    ],
+    "rows": [
+     [
+      1.0,
+      "x"
+     ],
+     [
+      null,
+      "y"
+     ],
+     [
+      3.0,
+      null
+     ]
+    ]
+   }
+  },
+  {
+   "name": "read_csv_semicolon",
+   "operation": "pd.read_csv(sep=';')",
+   "expected": {
+    "columns": [
+     "a",
+     "b"
+    ],
+    "rows": [
+     [
+      1,
+      "x"
+     ],
+     [
+      2,
+      "y"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "read_csv_usecols",
+   "operation": "pd.read_csv(usecols=['a','c'])",
+   "expected": {
+    "columns": [
+     "a",
+     "c"
+    ],
+    "rows": [
+     [
+      1,
+      3
+     ],
+     [
+      4,
+      6
+     ]
+    ]
+   }
+  },
+  {
+   "name": "read_csv_nrows",
+   "operation": "pd.read_csv(nrows=1)",
+   "expected": {
+    "columns": [
+     "a",
+     "b",
+     "c"
+    ],
+    "rows": [
+     [
+      1,
+      2,
+      3
+     ]
+    ]
+   }
+  },
+  {
+   "name": "read_csv_parse_dates",
+   "operation": "pd.read_csv(parse_dates=['day'])",
+   "expected": {
+    "columns": [
+     "day",
+     "v"
+    ],
+    "rows": [
+     [
+      "2024-01-02",
+      1
+     ],
+     [
+      "2024-02-03",
+      2
+     ]
+    ]
+   }
+  },
+  {
+   "name": "read_csv_no_header",
+   "operation": "pd.read_csv(header=None)",
+   "expected": {
+    "columns": [
+     "column_0",
+     "column_1"
+    ],
+    "rows": [
+     [
+      1,
+      "x"
+     ],
+     [
+      2,
+      "y"
+     ]
+    ]
+   }
+  }
+ ]
+}

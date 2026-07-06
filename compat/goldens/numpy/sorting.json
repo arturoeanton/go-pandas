@@ -1,0 +1,70 @@
+{
+ "suite": "numpy.sorting",
+ "numpy_version": "2.0.2",
+ "cases": [
+  {
+   "name": "sort_1d",
+   "operation": "np.sort(a)",
+   "expected": {
+    "shape": [
+     5
+    ],
+    "data": [
+     1.0,
+     1.0,
+     2.0,
+     3.0,
+     3.0
+    ]
+   }
+  },
+  {
+   "name": "sort_2d_last_axis",
+   "operation": "np.sort(m2)",
+   "expected": {
+    "shape": [
+     2,
+     3
+    ],
+    "data": [
+     1.0,
+     2.0,
+     3.0,
+     7.0,
+     8.0,
+     9.0
+    ]
+   }
+  },
+  {
+   "name": "argsort_1d",
+   "operation": "np.argsort(a)",
+   "expected": {
+    "shape": [
+     5
+    ],
+    "data": [
+     1.0,
+     4.0,
+     2.0,
+     0.0,
+     3.0
+    ]
+   }
+  },
+  {
+   "name": "unique",
+   "operation": "np.unique(a)",
+   "expected": {
+    "shape": [
+     3
+    ],
+    "data": [
+     1.0,
+     2.0,
+     3.0
+    ]
+   }
+  }
+ ]
+}

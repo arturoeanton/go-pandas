@@ -1,0 +1,49 @@
+{
+ "suite": "numpy.linalg",
+ "numpy_version": "2.0.2",
+ "cases": [
+  {
+   "name": "dot_vectors",
+   "operation": "np.dot(v, w)",
+   "expected": {
+    "scalar": 32.0
+   }
+  },
+  {
+   "name": "matvec",
+   "operation": "sq.dot([5,6])",
+   "expected": {
+    "shape": [
+     2
+    ],
+    "data": [
+     17.0,
+     39.0
+    ]
+   }
+  },
+  {
+   "name": "matmul",
+   "operation": "np.matmul(sq, [[5,6],[7,8]])",
+   "expected": {
+    "shape": [
+     2,
+     2
+    ],
+    "data": [
+     19.0,
+     22.0,
+     43.0,
+     50.0
+    ]
+   }
+  },
+  {
+   "name": "trace",
+   "operation": "np.trace(sq)",
+   "expected": {
+    "scalar": 5.0
+   }
+  }
+ ]
+}

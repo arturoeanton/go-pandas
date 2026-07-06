@@ -1,0 +1,162 @@
+{
+ "suite": "pandas.datetime",
+ "pandas_version": "2.3.3",
+ "cases": [
+  {
+   "name": "year",
+   "operation": "s.dt.year",
+   "expected": {
+    "values": [
+     2024,
+     2024,
+     2023,
+     2024
+    ]
+   }
+  },
+  {
+   "name": "month",
+   "operation": "s.dt.month",
+   "expected": {
+    "values": [
+     1,
+     3,
+     12,
+     6
+    ]
+   }
+  },
+  {
+   "name": "day",
+   "operation": "s.dt.day",
+   "expected": {
+    "values": [
+     1,
+     15,
+     31,
+     1
+    ]
+   }
+  },
+  {
+   "name": "hour",
+   "operation": "s.dt.hour",
+   "expected": {
+    "values": [
+     0,
+     10,
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "minute",
+   "operation": "s.dt.minute",
+   "expected": {
+    "values": [
+     0,
+     30,
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "second",
+   "operation": "s.dt.second",
+   "expected": {
+    "values": [
+     0,
+     45,
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "weekday",
+   "operation": "s.dt.weekday",
+   "expected": {
+    "values": [
+     0,
+     4,
+     6,
+     5
+    ]
+   }
+  },
+  {
+   "name": "dayofyear",
+   "operation": "s.dt.dayofyear",
+   "expected": {
+    "values": [
+     1,
+     75,
+     365,
+     153
+    ]
+   }
+  },
+  {
+   "name": "quarter",
+   "operation": "s.dt.quarter",
+   "expected": {
+    "values": [
+     1,
+     1,
+     4,
+     2
+    ]
+   }
+  },
+  {
+   "name": "is_month_start",
+   "operation": "s.dt.is_month_start",
+   "expected": {
+    "values": [
+     true,
+     false,
+     false,
+     true
+    ]
+   }
+  },
+  {
+   "name": "is_month_end",
+   "operation": "s.dt.is_month_end",
+   "expected": {
+    "values": [
+     false,
+     false,
+     true,
+     false
+    ]
+   }
+  },
+  {
+   "name": "is_year_start",
+   "operation": "s.dt.is_year_start",
+   "expected": {
+    "values": [
+     true,
+     false,
+     false,
+     false
+    ]
+   }
+  },
+  {
+   "name": "is_year_end",
+   "operation": "s.dt.is_year_end",
+   "expected": {
+    "values": [
+     false,
+     false,
+     true,
+     false
+    ]
+   }
+  }
+ ]
+}

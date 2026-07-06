@@ -1,0 +1,138 @@
+{
+ "suite": "pandas.rolling",
+ "pandas_version": "2.3.3",
+ "cases": [
+  {
+   "name": "rolling_mean_3",
+   "operation": "s.rolling(3).mean()",
+   "expected": {
+    "values": [
+     null,
+     null,
+     2.0,
+     3.0,
+     4.0
+    ]
+   }
+  },
+  {
+   "name": "rolling_sum_3",
+   "operation": "s.rolling(3).sum()",
+   "expected": {
+    "values": [
+     null,
+     null,
+     6.0,
+     9.0,
+     12.0
+    ]
+   }
+  },
+  {
+   "name": "rolling_min_periods_1",
+   "operation": "s.rolling(3, min_periods=1).mean()",
+   "expected": {
+    "values": [
+     1.0,
+     1.5,
+     2.0,
+     3.0,
+     4.0
+    ]
+   }
+  },
+  {
+   "name": "rolling_std_3",
+   "operation": "s.rolling(3).std()",
+   "expected": {
+    "values": [
+     null,
+     null,
+     1.0,
+     1.0,
+     1.0
+    ]
+   }
+  },
+  {
+   "name": "rolling_median_3",
+   "operation": "s.rolling(3).median()",
+   "expected": {
+    "values": [
+     null,
+     null,
+     2.0,
+     3.0,
+     4.0
+    ]
+   }
+  },
+  {
+   "name": "rolling_max_2",
+   "operation": "s.rolling(2).max()",
+   "expected": {
+    "values": [
+     null,
+     2.0,
+     3.0,
+     4.0,
+     5.0
+    ]
+   }
+  },
+  {
+   "name": "expanding_mean",
+   "operation": "s.expanding().mean()",
+   "expected": {
+    "values": [
+     1.0,
+     1.5,
+     2.0,
+     2.5,
+     3.0
+    ]
+   }
+  },
+  {
+   "name": "expanding_sum",
+   "operation": "s.expanding().sum()",
+   "expected": {
+    "values": [
+     1.0,
+     3.0,
+     6.0,
+     10.0,
+     15.0
+    ]
+   }
+  },
+  {
+   "name": "df_rolling_mean_2",
+   "operation": "df.rolling(2).mean()",
+   "expected": {
+    "columns": [
+     "open",
+     "close"
+    ],
+    "rows": [
+     [
+      null,
+      null
+     ],
+     [
+      1.5,
+      2.5
+     ],
+     [
+      2.5,
+      3.5
+     ],
+     [
+      3.5,
+      4.5
+     ]
+    ]
+   }
+  }
+ ]
+}

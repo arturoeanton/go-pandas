@@ -1,0 +1,592 @@
+{
+ "suite": "pandas.dataframe_core",
+ "pandas_version": "2.3.3",
+ "cases": [
+  {
+   "name": "head_2",
+   "operation": "df.head(2)",
+   "expected": {
+    "columns": [
+     "country",
+     "name",
+     "age",
+     "salary",
+     "dept"
+    ],
+    "rows": [
+     [
+      "AR",
+      "Ana",
+      30,
+      1000.0,
+      "eng"
+     ],
+     [
+      "AR",
+      "Luis",
+      40,
+      2000.0,
+      "sales"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "tail_2",
+   "operation": "df.tail(2)",
+   "expected": {
+    "columns": [
+     "country",
+     "name",
+     "age",
+     "salary",
+     "dept"
+    ],
+    "rows": [
+     [
+      "BR",
+      "Bia",
+      28,
+      1200.0,
+      "eng"
+     ],
+     [
+      "AR",
+      "Mia",
+      22,
+      800.0,
+      "sales"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "select_name_age",
+   "operation": "df[['name','age']]",
+   "expected": {
+    "columns": [
+     "name",
+     "age"
+    ],
+    "rows": [
+     [
+      "Ana",
+      30
+     ],
+     [
+      "Luis",
+      40
+     ],
+     [
+      "Joao",
+      35
+     ],
+     [
+      "Bia",
+      28
+     ],
+     [
+      "Mia",
+      22
+     ]
+    ]
+   }
+  },
+  {
+   "name": "drop_columns",
+   "operation": "df.drop(columns=['dept','name'])",
+   "expected": {
+    "columns": [
+     "country",
+     "age",
+     "salary"
+    ],
+    "rows": [
+     [
+      "AR",
+      30,
+      1000.0
+     ],
+     [
+      "AR",
+      40,
+      2000.0
+     ],
+     [
+      "BR",
+      35,
+      1500.0
+     ],
+     [
+      "BR",
+      28,
+      1200.0
+     ],
+     [
+      "AR",
+      22,
+      800.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "rename_age",
+   "operation": "df.rename(columns={'age':'years'})",
+   "expected": {
+    "columns": [
+     "country",
+     "name",
+     "years",
+     "salary",
+     "dept"
+    ],
+    "rows": [
+     [
+      "AR",
+      "Ana",
+      30,
+      1000.0,
+      "eng"
+     ],
+     [
+      "AR",
+      "Luis",
+      40,
+      2000.0,
+      "sales"
+     ],
+     [
+      "BR",
+      "Joao",
+      35,
+      1500.0,
+      "eng"
+     ],
+     [
+      "BR",
+      "Bia",
+      28,
+      1200.0,
+      "eng"
+     ],
+     [
+      "AR",
+      "Mia",
+      22,
+      800.0,
+      "sales"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "sort_salary_desc",
+   "operation": "df.sort_values('salary', ascending=False)",
+   "expected": {
+    "columns": [
+     "country",
+     "name",
+     "age",
+     "salary",
+     "dept"
+    ],
+    "rows": [
+     [
+      "AR",
+      "Luis",
+      40,
+      2000.0,
+      "sales"
+     ],
+     [
+      "BR",
+      "Joao",
+      35,
+      1500.0,
+      "eng"
+     ],
+     [
+      "BR",
+      "Bia",
+      28,
+      1200.0,
+      "eng"
+     ],
+     [
+      "AR",
+      "Ana",
+      30,
+      1000.0,
+      "eng"
+     ],
+     [
+      "AR",
+      "Mia",
+      22,
+      800.0,
+      "sales"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "sort_multi",
+   "operation": "df.sort_values(['country','age'], ascending=[True,False])",
+   "expected": {
+    "columns": [
+     "country",
+     "name",
+     "age",
+     "salary",
+     "dept"
+    ],
+    "rows": [
+     [
+      "AR",
+      "Luis",
+      40,
+      2000.0,
+      "sales"
+     ],
+     [
+      "AR",
+      "Ana",
+      30,
+      1000.0,
+      "eng"
+     ],
+     [
+      "AR",
+      "Mia",
+      22,
+      800.0,
+      "sales"
+     ],
+     [
+      "BR",
+      "Joao",
+      35,
+      1500.0,
+      "eng"
+     ],
+     [
+      "BR",
+      "Bia",
+      28,
+      1200.0,
+      "eng"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "assign_bonus",
+   "operation": "df.assign(bonus=df.salary*0.1)[['name','bonus']]",
+   "expected": {
+    "columns": [
+     "name",
+     "bonus"
+    ],
+    "rows": [
+     [
+      "Ana",
+      100.0
+     ],
+     [
+      "Luis",
+      200.0
+     ],
+     [
+      "Joao",
+      150.0
+     ],
+     [
+      "Bia",
+      120.0
+     ],
+     [
+      "Mia",
+      80.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "query_age_salary",
+   "operation": "df.query('age > 25 and salary < 1600')",
+   "expected": {
+    "columns": [
+     "country",
+     "name",
+     "age",
+     "salary",
+     "dept"
+    ],
+    "rows": [
+     [
+      "AR",
+      "Ana",
+      30,
+      1000.0,
+      "eng"
+     ],
+     [
+      "BR",
+      "Joao",
+      35,
+      1500.0,
+      "eng"
+     ],
+     [
+      "BR",
+      "Bia",
+      28,
+      1200.0,
+      "eng"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "query_in",
+   "operation": "df.query('country in [\"BR\"]')",
+   "expected": {
+    "columns": [
+     "country",
+     "name",
+     "age",
+     "salary",
+     "dept"
+    ],
+    "rows": [
+     [
+      "BR",
+      "Joao",
+      35,
+      1500.0,
+      "eng"
+     ],
+     [
+      "BR",
+      "Bia",
+      28,
+      1200.0,
+      "eng"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "describe",
+   "operation": "df[['age','salary']].describe().reset_index()",
+   "expected": {
+    "columns": [
+     "index",
+     "age",
+     "salary"
+    ],
+    "rows": [
+     [
+      "count",
+      5.0,
+      5.0
+     ],
+     [
+      "mean",
+      31.0,
+      1300.0
+     ],
+     [
+      "std",
+      6.855654600401044,
+      469.041575982343
+     ],
+     [
+      "min",
+      22.0,
+      800.0
+     ],
+     [
+      "25%",
+      28.0,
+      1000.0
+     ],
+     [
+      "50%",
+      30.0,
+      1200.0
+     ],
+     [
+      "75%",
+      35.0,
+      1500.0
+     ],
+     [
+      "max",
+      40.0,
+      2000.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "round_1",
+   "operation": "(df[['salary']]/3).round(1)",
+   "expected": {
+    "columns": [
+     "salary"
+    ],
+    "rows": [
+     [
+      333.3
+     ],
+     [
+      666.7
+     ],
+     [
+      500.0
+     ],
+     [
+      400.0
+     ],
+     [
+      266.7
+     ]
+    ]
+   }
+  },
+  {
+   "name": "clip_age",
+   "operation": "df[['age']].clip(25, 35)",
+   "expected": {
+    "columns": [
+     "age"
+    ],
+    "rows": [
+     [
+      30
+     ],
+     [
+      35
+     ],
+     [
+      35
+     ],
+     [
+      28
+     ],
+     [
+      25
+     ]
+    ]
+   }
+  },
+  {
+   "name": "duplicated",
+   "operation": "dup.duplicated()",
+   "expected": {
+    "values": [
+     false,
+     true,
+     false
+    ]
+   }
+  },
+  {
+   "name": "drop_duplicates",
+   "operation": "dup.drop_duplicates()",
+   "expected": {
+    "columns": [
+     "a",
+     "b"
+    ],
+    "rows": [
+     [
+      1,
+      "x"
+     ],
+     [
+      2,
+      "y"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "nunique",
+   "operation": "df.nunique()",
+   "expected": {
+    "values": [
+     2,
+     5,
+     5,
+     5,
+     2
+    ],
+    "index": [
+     "country",
+     "name",
+     "age",
+     "salary",
+     "dept"
+    ]
+   }
+  },
+  {
+   "name": "corr",
+   "operation": "df[['age','salary']].corr().reset_index()",
+   "expected": {
+    "columns": [
+     "index",
+     "age",
+     "salary"
+    ],
+    "rows": [
+     [
+      "age",
+      1.0,
+      0.9485048806959624
+     ],
+     [
+      "salary",
+      0.9485048806959624,
+      1.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "select_dtypes_number",
+   "operation": "df.select_dtypes(include=['number'])",
+   "expected": {
+    "columns": [
+     "age",
+     "salary"
+    ],
+    "rows": [
+     [
+      30,
+      1000.0
+     ],
+     [
+      40,
+      2000.0
+     ],
+     [
+      35,
+      1500.0
+     ],
+     [
+      28,
+      1200.0
+     ],
+     [
+      22,
+      800.0
+     ]
+    ]
+   }
+  }
+ ]
+}

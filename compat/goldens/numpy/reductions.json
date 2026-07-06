@@ -1,0 +1,136 @@
+{
+ "suite": "numpy.reductions",
+ "numpy_version": "2.0.2",
+ "cases": [
+  {
+   "name": "sum_all",
+   "operation": "m.sum()",
+   "expected": {
+    "scalar": 15.0
+   }
+  },
+  {
+   "name": "sum_axis0",
+   "operation": "m.sum(axis=0)",
+   "expected": {
+    "shape": [
+     3
+    ],
+    "data": [
+     3.0,
+     5.0,
+     7.0
+    ]
+   }
+  },
+  {
+   "name": "sum_axis1",
+   "operation": "m.sum(axis=1)",
+   "expected": {
+    "shape": [
+     2
+    ],
+    "data": [
+     3.0,
+     12.0
+    ]
+   }
+  },
+  {
+   "name": "mean_all",
+   "operation": "m.mean()",
+   "expected": {
+    "scalar": 2.5
+   }
+  },
+  {
+   "name": "mean_axis0",
+   "operation": "m.mean(axis=0)",
+   "expected": {
+    "shape": [
+     3
+    ],
+    "data": [
+     1.5,
+     2.5,
+     3.5
+    ]
+   }
+  },
+  {
+   "name": "std_default",
+   "operation": "m.std()",
+   "expected": {
+    "scalar": 1.707825127659933
+   }
+  },
+  {
+   "name": "std_ddof1",
+   "operation": "m.std(ddof=1)",
+   "expected": {
+    "scalar": 1.8708286933869707
+   }
+  },
+  {
+   "name": "var_default",
+   "operation": "m.var()",
+   "expected": {
+    "scalar": 2.9166666666666665
+   }
+  },
+  {
+   "name": "var_axis1_ddof1",
+   "operation": "m.var(axis=1, ddof=1)",
+   "expected": {
+    "shape": [
+     2
+    ],
+    "data": [
+     1.0,
+     1.0
+    ]
+   }
+  },
+  {
+   "name": "min_all",
+   "operation": "m.min()",
+   "expected": {
+    "scalar": 0.0
+   }
+  },
+  {
+   "name": "max_axis0",
+   "operation": "m.max(axis=0)",
+   "expected": {
+    "shape": [
+     3
+    ],
+    "data": [
+     3.0,
+     4.0,
+     5.0
+    ]
+   }
+  },
+  {
+   "name": "argmin_all",
+   "operation": "m.argmin()",
+   "expected": {
+    "scalar": 0.0
+   }
+  },
+  {
+   "name": "argmax_axis1",
+   "operation": "m.argmax(axis=1)",
+   "expected": {
+    "shape": [
+     2
+    ],
+    "data": [
+     2.0,
+     2.0
+    ]
+   }
+  }
+ ]
+}

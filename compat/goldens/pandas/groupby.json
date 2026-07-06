@@ -1,0 +1,280 @@
+{
+ "suite": "pandas.groupby",
+ "pandas_version": "2.3.3",
+ "cases": [
+  {
+   "name": "size",
+   "operation": "df.groupby('country').size()",
+   "expected": {
+    "columns": [
+     "country",
+     "size"
+    ],
+    "rows": [
+     [
+      "AR",
+      3
+     ],
+     [
+      "BR",
+      2
+     ]
+    ]
+   }
+  },
+  {
+   "name": "count_name",
+   "operation": "df.groupby('country')['name'].count()",
+   "expected": {
+    "columns": [
+     "country",
+     "name"
+    ],
+    "rows": [
+     [
+      "AR",
+      3
+     ],
+     [
+      "BR",
+      2
+     ]
+    ]
+   }
+  },
+  {
+   "name": "sum_salary",
+   "operation": "df.groupby('country')['salary'].sum()",
+   "expected": {
+    "columns": [
+     "country",
+     "salary"
+    ],
+    "rows": [
+     [
+      "AR",
+      3800.0
+     ],
+     [
+      "BR",
+      2700.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "mean_salary",
+   "operation": "df.groupby('country')['salary'].mean()",
+   "expected": {
+    "columns": [
+     "country",
+     "salary"
+    ],
+    "rows": [
+     [
+      "AR",
+      1266.6666666666667
+     ],
+     [
+      "BR",
+      1350.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "median_salary",
+   "operation": "df.groupby('country')['salary'].median()",
+   "expected": {
+    "columns": [
+     "country",
+     "salary"
+    ],
+    "rows": [
+     [
+      "AR",
+      1000.0
+     ],
+     [
+      "BR",
+      1350.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "min_salary",
+   "operation": "df.groupby('country')['salary'].min()",
+   "expected": {
+    "columns": [
+     "country",
+     "salary"
+    ],
+    "rows": [
+     [
+      "AR",
+      800.0
+     ],
+     [
+      "BR",
+      1200.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "max_salary",
+   "operation": "df.groupby('country')['salary'].max()",
+   "expected": {
+    "columns": [
+     "country",
+     "salary"
+    ],
+    "rows": [
+     [
+      "AR",
+      2000.0
+     ],
+     [
+      "BR",
+      1500.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "std_salary",
+   "operation": "df.groupby('country')['salary'].std()",
+   "expected": {
+    "columns": [
+     "country",
+     "salary"
+    ],
+    "rows": [
+     [
+      "AR",
+      642.9100507328637
+     ],
+     [
+      "BR",
+      212.13203435596427
+     ]
+    ]
+   }
+  },
+  {
+   "name": "mean_two_keys",
+   "operation": "df.groupby(['country','dept'])['salary'].mean()",
+   "expected": {
+    "columns": [
+     "country",
+     "dept",
+     "salary"
+    ],
+    "rows": [
+     [
+      "AR",
+      "eng",
+      1000.0
+     ],
+     [
+      "AR",
+      "sales",
+      1400.0
+     ],
+     [
+      "BR",
+      "eng",
+      1350.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "agg_named",
+   "operation": "df.groupby('country').agg(age_min=..., salary_max=..., salary_mean=...)",
+   "expected": {
+    "columns": [
+     "country",
+     "age_min",
+     "salary_max",
+     "salary_mean"
+    ],
+    "rows": [
+     [
+      "AR",
+      22,
+      2000.0,
+      1266.6666666666667
+     ],
+     [
+      "BR",
+      28,
+      1500.0,
+      1350.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "nunique_dept",
+   "operation": "df.groupby('country')['dept'].nunique()",
+   "expected": {
+    "columns": [
+     "country",
+     "dept"
+    ],
+    "rows": [
+     [
+      "AR",
+      2
+     ],
+     [
+      "BR",
+      1
+     ]
+    ]
+   }
+  },
+  {
+   "name": "first",
+   "operation": "df.groupby('country')[['name']].first()",
+   "expected": {
+    "columns": [
+     "country",
+     "name"
+    ],
+    "rows": [
+     [
+      "AR",
+      "Ana"
+     ],
+     [
+      "BR",
+      "Joao"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "last",
+   "operation": "df.groupby('country')[['name']].last()",
+   "expected": {
+    "columns": [
+     "country",
+     "name"
+    ],
+    "rows": [
+     [
+      "AR",
+      "Mia"
+     ],
+     [
+      "BR",
+      "Bia"
+     ]
+    ]
+   }
+  }
+ ]
+}

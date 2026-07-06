@@ -1,0 +1,241 @@
+{
+ "suite": "pandas.merge_join_concat",
+ "pandas_version": "2.3.3",
+ "cases": [
+  {
+   "name": "merge_inner",
+   "operation": "merge how=inner",
+   "expected": {
+    "columns": [
+     "id",
+     "name",
+     "salary"
+    ],
+    "rows": [
+     [
+      1,
+      "Ana",
+      1000.0
+     ],
+     [
+      2,
+      "Luis",
+      2000.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "merge_left",
+   "operation": "merge how=left",
+   "expected": {
+    "columns": [
+     "id",
+     "name",
+     "salary"
+    ],
+    "rows": [
+     [
+      1,
+      "Ana",
+      1000.0
+     ],
+     [
+      2,
+      "Luis",
+      2000.0
+     ],
+     [
+      3,
+      "Marta",
+      null
+     ]
+    ]
+   }
+  },
+  {
+   "name": "merge_right",
+   "operation": "merge how=right",
+   "expected": {
+    "columns": [
+     "id",
+     "name",
+     "salary"
+    ],
+    "rows": [
+     [
+      1,
+      "Ana",
+      1000.0
+     ],
+     [
+      2,
+      "Luis",
+      2000.0
+     ],
+     [
+      4,
+      null,
+      4000.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "merge_outer",
+   "operation": "merge how=outer",
+   "expected": {
+    "columns": [
+     "id",
+     "name",
+     "salary"
+    ],
+    "rows": [
+     [
+      1,
+      "Ana",
+      1000.0
+     ],
+     [
+      2,
+      "Luis",
+      2000.0
+     ],
+     [
+      3,
+      "Marta",
+      null
+     ],
+     [
+      4,
+      null,
+      4000.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "merge_left_on_right_on",
+   "operation": "merge left_on/right_on (right key dropped)",
+   "expected": {
+    "columns": [
+     "user_id",
+     "v",
+     "salary"
+    ],
+    "rows": [
+     [
+      1,
+      10,
+      1000.0
+     ],
+     [
+      2,
+      20,
+      2000.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "merge_cross",
+   "operation": "merge how=cross",
+   "expected": {
+    "columns": [
+     "x",
+     "y"
+    ],
+    "rows": [
+     [
+      1,
+      "a"
+     ],
+     [
+      1,
+      "b"
+     ],
+     [
+      2,
+      "a"
+     ],
+     [
+      2,
+      "b"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "concat_rows",
+   "operation": "pd.concat ignore_index",
+   "expected": {
+    "columns": [
+     "x",
+     "y"
+    ],
+    "rows": [
+     [
+      1,
+      "a"
+     ],
+     [
+      2,
+      "b"
+     ],
+     [
+      3,
+      "c"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "concat_union",
+   "operation": "pd.concat column union",
+   "expected": {
+    "columns": [
+     "x",
+     "y",
+     "z"
+    ],
+    "rows": [
+     [
+      1,
+      "a",
+      null
+     ],
+     [
+      2,
+      "b",
+      null
+     ],
+     [
+      4,
+      null,
+      true
+     ]
+    ]
+   }
+  },
+  {
+   "name": "join_index",
+   "operation": "left.join(right)",
+   "expected": {
+    "columns": [
+     "v",
+     "w"
+    ],
+    "rows": [
+     [
+      1,
+      10
+     ],
+     [
+      2,
+      20
+     ]
+    ]
+   }
+  }
+ ]
+}
