@@ -1,0 +1,234 @@
+package series
+
+import (
+	"fmt"
+	"math"
+
+	"github.com/arturoeanton/go-pandas/dtype"
+	"github.com/arturoeanton/go-pandas/errs"
+)
+
+// RollingOptions configures window behavior.
+type RollingOptions struct {
+	// MinPeriods is the minimum number of present values required for a
+	// window to produce a value; defaults to the window size.
+	MinPeriods int
+	// Center labels each window at its center instead of its right edge.
+	Center bool
+}
+
+// RollingOption mutates RollingOptions.
+type RollingOption func(*RollingOptions)
+
+// RollingMinPeriods sets the minimum observations per window.
+func RollingMinPeriods(n int) RollingOption {
+	return func(o *RollingOptions) { o.MinPeriods = n }
+}
+
+// RollingCenter centers the window labels.
+func RollingCenter(v bool) RollingOption {
+	return func(o *RollingOptions) { o.Center = v }
+}
+
+// RollingSeries is a fixed-size rolling window over a numeric series.
+type RollingSeries struct {
+	s      *Series
+	window int
+	opts   RollingOptions
+}
+
+// Rolling creates a rolling window of the given size.
+func (s *Series) Rolling(window int, opts ...RollingOption) *RollingSeries {
+	o := RollingOptions{MinPeriods: window}
+	for _, f := range opts {
+		f(&o)
+	}
+	return &RollingSeries{s: s, window: window, opts: o}
+}
+
+// aggregate slides the window and reduces each one with f (which receives
+// only the present values in the window).
+func (r *RollingSeries) aggregate(f func(window []float64) float64) (*Series, error) {
+	if r.window <= 0 {
+		return nil, fmt.Errorf("%w: rolling window must be positive", errs.ErrInvalidOperation)
+	}
+	src := r.s
+	n := src.Len()
+	floats := make([]float64, n)
+	present := make([]bool, n)
+	for i := 0; i < n; i++ {
+		if src.mask[i] {
+			continue
+		}
+		v, ok := dtype.AsFloat(src.data[i])
+		if !ok {
+			return nil, fmt.Errorf("%w: rolling on non-numeric value %T", errs.ErrTypeMismatch, src.data[i])
+		}
+		floats[i] = v
+		present[i] = true
+	}
+	data := make([]any, n)
+	mask := make([]bool, n)
+	offset := 0
+	if r.opts.Center {
+		offset = r.window / 2
+	}
+	for i := 0; i < n; i++ {
+		end := i + offset // inclusive right edge of the window
+		start := end - r.window + 1
+		if end >= n {
+			mask[i] = true
+			continue
+		}
+		var buf []float64
+		for j := start; j <= end; j++ {
+			if j >= 0 && present[j] {
+				buf = append(buf, floats[j])
+			}
+		}
+		if start < 0 && r.opts.MinPeriods >= r.window {
+			mask[i] = true
+			continue
+		}
+		if len(buf) < r.opts.MinPeriods {
+			mask[i] = true
+			continue
+		}
+		data[i] = f(buf)
+	}
+	return &Series{
+		name:  src.name,
+		dtype: dtype.Float64,
+		data:  data,
+		mask:  mask,
+		index: src.index.Clone(),
+	}, nil
+}
+
+// Sum returns the rolling sum.
+func (r *RollingSeries) Sum() (*Series, error) {
+	return r.aggregate(func(w []float64) float64 {
+		acc := 0.0
+		for _, v := range w {
+			acc += v
+		}
+		return acc
+	})
+}
+
+// Mean returns the rolling mean.
+func (r *RollingSeries) Mean() (*Series, error) {
+	return r.aggregate(func(w []float64) float64 {
+		acc := 0.0
+		for _, v := range w {
+			acc += v
+		}
+		return acc / float64(len(w))
+	})
+}
+
+// Min returns the rolling minimum.
+func (r *RollingSeries) Min() (*Series, error) {
+	return r.aggregate(func(w []float64) float64 {
+		best := math.Inf(1)
+		for _, v := range w {
+			best = math.Min(best, v)
+		}
+		return best
+	})
+}
+
+// Max returns the rolling maximum.
+func (r *RollingSeries) Max() (*Series, error) {
+	return r.aggregate(func(w []float64) float64 {
+		best := math.Inf(-1)
+		for _, v := range w {
+			best = math.Max(best, v)
+		}
+		return best
+	})
+}
+
+// Std returns the rolling sample standard deviation (ddof=1).
+func (r *RollingSeries) Std() (*Series, error) {
+	return r.aggregate(func(w []float64) float64 {
+		if len(w) < 2 {
+			return math.NaN()
+		}
+		mean := 0.0
+		for _, v := range w {
+			mean += v
+		}
+		mean /= float64(len(w))
+		acc := 0.0
+		for _, v := range w {
+			d := v - mean
+			acc += d * d
+		}
+		return math.Sqrt(acc / float64(len(w)-1))
+	})
+}
+
+// ExpandingSeries is an expanding window (window i covers positions 0..i).
+type ExpandingSeries struct {
+	s          *Series
+	minPeriods int
+}
+
+// Expanding creates an expanding window with the given minimum number of
+// observations (1 when omitted).
+func (s *Series) Expanding(minPeriods ...int) *ExpandingSeries {
+	mp := 1
+	if len(minPeriods) > 0 && minPeriods[0] > 0 {
+		mp = minPeriods[0]
+	}
+	return &ExpandingSeries{s: s, minPeriods: mp}
+}
+
+func (e *ExpandingSeries) aggregate(f func(window []float64) float64) (*Series, error) {
+	r := &RollingSeries{s: e.s, window: e.s.Len(), opts: RollingOptions{MinPeriods: e.minPeriods}}
+	// An expanding window is a rolling window as large as the series with
+	// relaxed min periods; reuse the same machinery.
+	src := e.s
+	n := src.Len()
+	data := make([]any, n)
+	mask := make([]bool, n)
+	var buf []float64
+	for i := 0; i < n; i++ {
+		if !src.mask[i] {
+			if v, ok := dtype.AsFloat(src.data[i]); ok {
+				buf = append(buf, v)
+			} else {
+				return nil, fmt.Errorf("%w: expanding on non-numeric value %T", errs.ErrTypeMismatch, src.data[i])
+			}
+		}
+		if len(buf) < r.opts.MinPeriods {
+			mask[i] = true
+			continue
+		}
+		data[i] = f(buf)
+	}
+	return &Series{name: src.name, dtype: dtype.Float64, data: data, mask: mask, index: src.index.Clone()}, nil
+}
+
+// Sum returns the expanding sum.
+func (e *ExpandingSeries) Sum() (*Series, error) {
+	return e.aggregate(func(w []float64) float64 {
+		acc := 0.0
+		for _, v := range w {
+			acc += v
+		}
+		return acc
+	})
+}
+
+// Mean returns the expanding mean.
+func (e *ExpandingSeries) Mean() (*Series, error) {
+	return e.aggregate(func(w []float64) float64 {
+		acc := 0.0
+		for _, v := range w {
+			acc += v
+		}
+		return acc / float64(len(w))
+	})
+}

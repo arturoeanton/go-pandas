@@ -1,0 +1,121 @@
+package series
+
+import (
+	"github.com/arturoeanton/go-pandas/expr"
+)
+
+// cmp builds a boolean series from a per-position predicate. Missing
+// values compare as false, like pandas.
+func (s *Series) cmp(name string, f func(v any) bool) *Series {
+	return s.boolSeries(s.name, func(i int) bool {
+		if s.mask[i] {
+			return false
+		}
+		return f(s.data[i])
+	})
+}
+
+// Eq returns s == v elementwise. v may be a scalar or another *Series.
+func (s *Series) Eq(v any) *Series {
+	if o, ok := v.(*Series); ok {
+		return s.cmpSeries(o, func(a, b any) bool { return expr.EqualValues(a, b) })
+	}
+	return s.cmp("eq", func(x any) bool { return expr.EqualValues(x, v) })
+}
+
+// Ne returns s != v elementwise.
+func (s *Series) Ne(v any) *Series {
+	if o, ok := v.(*Series); ok {
+		return s.cmpSeries(o, func(a, b any) bool { return !expr.EqualValues(a, b) })
+	}
+	return s.cmp("ne", func(x any) bool { return !expr.EqualValues(x, v) })
+}
+
+func ordCmp(a, b any, ok func(c int) bool) bool {
+	c, comparable := expr.CompareValues(a, b)
+	return comparable && ok(c)
+}
+
+// Gt returns s > v elementwise.
+func (s *Series) Gt(v any) *Series {
+	if o, ok := v.(*Series); ok {
+		return s.cmpSeries(o, func(a, b any) bool { return ordCmp(a, b, func(c int) bool { return c > 0 }) })
+	}
+	return s.cmp("gt", func(x any) bool { return ordCmp(x, v, func(c int) bool { return c > 0 }) })
+}
+
+// Ge returns s >= v elementwise.
+func (s *Series) Ge(v any) *Series {
+	if o, ok := v.(*Series); ok {
+		return s.cmpSeries(o, func(a, b any) bool { return ordCmp(a, b, func(c int) bool { return c >= 0 }) })
+	}
+	return s.cmp("ge", func(x any) bool { return ordCmp(x, v, func(c int) bool { return c >= 0 }) })
+}
+
+// Lt returns s < v elementwise.
+func (s *Series) Lt(v any) *Series {
+	if o, ok := v.(*Series); ok {
+		return s.cmpSeries(o, func(a, b any) bool { return ordCmp(a, b, func(c int) bool { return c < 0 }) })
+	}
+	return s.cmp("lt", func(x any) bool { return ordCmp(x, v, func(c int) bool { return c < 0 }) })
+}
+
+// Le returns s <= v elementwise.
+func (s *Series) Le(v any) *Series {
+	if o, ok := v.(*Series); ok {
+		return s.cmpSeries(o, func(a, b any) bool { return ordCmp(a, b, func(c int) bool { return c <= 0 }) })
+	}
+	return s.cmp("le", func(x any) bool { return ordCmp(x, v, func(c int) bool { return c <= 0 }) })
+}
+
+func (s *Series) cmpSeries(other *Series, f func(a, b any) bool) *Series {
+	return s.boolSeries(s.name, func(i int) bool {
+		if s.mask[i] || i >= other.Len() || other.mask[i] {
+			return false
+		}
+		return f(s.data[i], other.data[i])
+	})
+}
+
+// Between checks left <= s <= right; inclusive is one of "both" (default),
+// "neither", "left" or "right".
+func (s *Series) Between(left, right any, inclusive string) *Series {
+	lo := func(x any) bool { return ordCmp(x, left, func(c int) bool { return c >= 0 }) }
+	hi := func(x any) bool { return ordCmp(x, right, func(c int) bool { return c <= 0 }) }
+	switch inclusive {
+	case "neither":
+		lo = func(x any) bool { return ordCmp(x, left, func(c int) bool { return c > 0 }) }
+		hi = func(x any) bool { return ordCmp(x, right, func(c int) bool { return c < 0 }) }
+	case "left":
+		hi = func(x any) bool { return ordCmp(x, right, func(c int) bool { return c < 0 }) }
+	case "right":
+		lo = func(x any) bool { return ordCmp(x, left, func(c int) bool { return c > 0 }) }
+	}
+	return s.cmp("between", func(x any) bool { return lo(x) && hi(x) })
+}
+
+// IsIn checks membership against a list of values.
+func (s *Series) IsIn(values ...any) *Series {
+	return s.cmp("isin", func(x any) bool {
+		for _, v := range values {
+			if expr.EqualValues(x, v) {
+				return true
+			}
+		}
+		return false
+	})
+}
+
+// AsMask converts a Bool series to []bool (missing -> false).
+func (s *Series) AsMask() []bool {
+	out := make([]bool, s.Len())
+	for i := range out {
+		if s.mask[i] {
+			continue
+		}
+		if b, ok := s.data[i].(bool); ok {
+			out[i] = b
+		}
+	}
+	return out
+}
