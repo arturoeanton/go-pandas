@@ -1,4 +1,17 @@
-.PHONY: test build examples regen-goldens fmt vet
+.PHONY: test build examples regen-goldens fmt vet race bench fuzz compat
+
+race:
+	go test ./... -race
+
+bench:
+	go test ./benchmarks/ -bench=. -benchmem
+
+fuzz:
+	go test ./fuzz/ -run=NONE -fuzz=FuzzReadCSV -fuzztime=30s
+
+# Regenerate goldens from real pandas/NumPy and re-run the compat tests.
+compat:
+	python3 compat/python/run_compat_suite.py
 
 test:
 	go test ./...
