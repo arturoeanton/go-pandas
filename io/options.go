@@ -15,11 +15,17 @@ type CSVOptions struct {
 	Comma      rune
 	InferTypes bool
 	NAValues   []string
-	ParseDates []string
-	DateFormat string
-	TrimSpace  bool
-	Comment    rune
-	Limit      int
+	// KeepDefaultNA appends the default NA strings to custom NAValues
+	// instead of replacing them, like read_csv(keep_default_na=True).
+	KeepDefaultNA bool
+	ParseDates    []string
+	DateFormat    string
+	TrimSpace     bool
+	Comment       rune
+	Limit         int
+	// UseCols restricts parsing to the named columns, like
+	// read_csv(usecols=[...]).
+	UseCols []string
 }
 
 // DefaultCSVOptions returns the pandas-like defaults.
@@ -67,6 +73,20 @@ func WithComment(r rune) CSVOption { return func(o *CSVOptions) { o.Comment = r 
 
 // WithLimit caps the number of data rows read (0 means no limit).
 func WithLimit(n int) CSVOption { return func(o *CSVOptions) { o.Limit = n } }
+
+// WithNRows is an alias of WithLimit matching read_csv(nrows=n).
+func WithNRows(n int) CSVOption { return WithLimit(n) }
+
+// WithUseCols restricts parsing to the named columns.
+func WithUseCols(columns ...string) CSVOption {
+	return func(o *CSVOptions) { o.UseCols = columns }
+}
+
+// WithKeepDefaultNA appends the default NA strings to a custom
+// WithNAValues list instead of replacing them.
+func WithKeepDefaultNA(v bool) CSVOption {
+	return func(o *CSVOptions) { o.KeepDefaultNA = v }
+}
 
 // JSONOptions configures JSON reading and writing.
 type JSONOptions struct {

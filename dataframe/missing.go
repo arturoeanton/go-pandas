@@ -41,6 +41,11 @@ type DropNAOptions struct {
 	How string
 	// Subset restricts the check to these columns.
 	Subset []string
+	// Thresh keeps rows with at least this many non-NA values (overrides
+	// How when positive), like df.dropna(thresh=n).
+	Thresh int
+	// Axis 0 drops rows (default); axis 1 drops columns containing NA.
+	Axis int
 }
 
 // DropNAOption mutates DropNAOptions.
@@ -56,11 +61,42 @@ func DropNASubset(columns ...string) DropNAOption {
 	return func(o *DropNAOptions) { o.Subset = columns }
 }
 
-// DropNA drops rows containing missing values.
+// DropNAThresh keeps rows with at least n non-NA values.
+func DropNAThresh(n int) DropNAOption {
+	return func(o *DropNAOptions) { o.Thresh = n }
+}
+
+// DropNAAxis selects the drop axis: 0 for rows, 1 for columns.
+func DropNAAxis(axis int) DropNAOption {
+	return func(o *DropNAOptions) { o.Axis = axis }
+}
+
+// DropNA drops rows (or columns with DropNAAxis(1)) containing missing
+// values.
 func (df *DataFrame) DropNA(opts ...DropNAOption) *DataFrame {
 	o := DropNAOptions{How: "any"}
 	for _, f := range opts {
 		f(&o)
+	}
+	if o.Axis == 1 {
+		var keep []string
+		for _, c := range df.columns {
+			naCount := c.Len() - c.Count()
+			drop := false
+			switch {
+			case o.Thresh > 0:
+				drop = c.Count() < o.Thresh
+			case o.How == "all":
+				drop = c.Len() > 0 && naCount == c.Len()
+			default:
+				drop = naCount > 0
+			}
+			if !drop {
+				keep = append(keep, c.Name())
+			}
+		}
+		out, _ := df.Select(keep...)
+		return out
 	}
 	check := df.columns
 	if len(o.Subset) > 0 {
@@ -84,9 +120,12 @@ func (df *DataFrame) DropNA(opts ...DropNAOption) *DataFrame {
 			}
 		}
 		drop := false
-		if o.How == "all" {
+		switch {
+		case o.Thresh > 0:
+			drop = len(check)-naCount < o.Thresh
+		case o.How == "all":
 			drop = len(check) > 0 && naCount == len(check)
-		} else {
+		default:
 			drop = naCount > 0
 		}
 		if !drop {

@@ -150,7 +150,16 @@ func (p *parser) parseComparison() (Predicate, error) {
 	if colTok == "" {
 		return nil, fmt.Errorf("%w: expected column name", errs.ErrInvalidOperation)
 	}
+	// name.str.contains("x") / name.str.startswith("x") / name.str.endswith("x")
+	if strings.Contains(colTok, ".str.") {
+		return p.parseStrMethod(colTok)
+	}
 	col := Col(colTok)
+	// Bare boolean column: `active`, `not active`, `a and active`.
+	switch next := p.peek(); {
+	case next == "" || next == ")" || strings.EqualFold(next, "and") || strings.EqualFold(next, "or"):
+		return col.Eq(true), nil
+	}
 	op := p.next()
 	if strings.EqualFold(op, "in") {
 		values, err := p.parseList()
@@ -179,6 +188,39 @@ func (p *parser) parseComparison() (Predicate, error) {
 		return col.Le(val), nil
 	}
 	return nil, fmt.Errorf("%w: unknown operator %q", errs.ErrInvalidOperation, op)
+}
+
+// parseStrMethod handles `col.str.method("arg")` calls in queries.
+func (p *parser) parseStrMethod(tok string) (Predicate, error) {
+	parts := strings.SplitN(tok, ".str.", 2)
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("%w: malformed str accessor %q", errs.ErrInvalidOperation, tok)
+	}
+	col, method := Col(parts[0]), parts[1]
+	if p.next() != "(" {
+		return nil, fmt.Errorf("%w: expected '(' after .str.%s", errs.ErrInvalidOperation, method)
+	}
+	argTok := p.next()
+	arg, err := parseValue(argTok)
+	if err != nil {
+		return nil, err
+	}
+	argStr, ok := arg.(string)
+	if !ok {
+		return nil, fmt.Errorf("%w: .str.%s expects a string argument", errs.ErrInvalidOperation, method)
+	}
+	if p.next() != ")" {
+		return nil, fmt.Errorf("%w: expected ')' after .str.%s(...)", errs.ErrInvalidOperation, method)
+	}
+	switch method {
+	case "contains":
+		return col.Contains(argStr), nil
+	case "startswith":
+		return col.StartsWith(argStr), nil
+	case "endswith":
+		return col.EndsWith(argStr), nil
+	}
+	return nil, errs.NotImplemented("query .str." + method)
 }
 
 func (p *parser) parseList() ([]any, error) {

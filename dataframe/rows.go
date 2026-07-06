@@ -108,19 +108,39 @@ func (df *DataFrame) Sample(n int, opts ...SampleOption) (*DataFrame, error) {
 	return df.Take(perm)
 }
 
-// ResetIndex returns the frame with a fresh RangeIndex.
+// ResetIndex returns the frame with a fresh RangeIndex. Like pandas
+// reset_index, a non-default index is inserted as the first column (named
+// after the index, or "index").
 func (df *DataFrame) ResetIndex() *DataFrame {
-	cols := make([]*series.Series, len(df.columns))
-	for i, c := range df.columns {
-		cols[i] = c.ResetIndex()
+	var cols []*series.Series
+	if _, isRange := df.index.(*index.RangeIndex); !isRange {
+		name := df.index.Name()
+		if name == "" {
+			name = "index"
+		}
+		cols = append(cols, series.NewSeries(name, df.index.Values()))
+	}
+	for _, c := range df.columns {
+		cols = append(cols, c.ResetIndex())
 	}
 	out, _ := newFrame(cols, index.NewRangeIndex(df.Len()))
 	return out
 }
 
 // SetIndex uses a column's values as the new row index; the column is
-// removed from the frame, like df.set_index("col").
-func (df *DataFrame) SetIndex(column string) (*DataFrame, error) {
+// removed from the frame, like df.set_index("col"). Multiple columns
+// (MultiIndex) are not supported yet.
+func (df *DataFrame) SetIndex(columns ...string) (*DataFrame, error) {
+	if len(columns) == 0 {
+		return nil, fmt.Errorf("%w: SetIndex needs a column", errs.ErrInvalidOperation)
+	}
+	if len(columns) > 1 {
+		return nil, errs.NotImplemented("DataFrame.SetIndex with multiple columns (MultiIndex)")
+	}
+	return df.setIndexSingle(columns[0])
+}
+
+func (df *DataFrame) setIndexSingle(column string) (*DataFrame, error) {
 	c, err := df.Col(column)
 	if err != nil {
 		return nil, err

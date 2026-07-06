@@ -243,6 +243,16 @@ func ReadJSON(path string, opts ...JSONOption) (*DataFrame, error) {
 	return dataframe.ReadJSON(path, opts...)
 }
 
+// ReadJSONReader reads JSON from any reader.
+func ReadJSONReader(r stdio.Reader, opts ...JSONOption) (*DataFrame, error) {
+	return dataframe.ReadJSONReader(r, opts...)
+}
+
+// ReadNDJSONReader reads NDJSON from any reader.
+func ReadNDJSONReader(r stdio.Reader, opts ...JSONOption) (*DataFrame, error) {
+	return dataframe.ReadNDJSONReader(r, opts...)
+}
+
 // ReadNDJSON reads newline-delimited JSON.
 func ReadNDJSON(path string, opts ...JSONOption) (*DataFrame, error) {
 	return dataframe.ReadNDJSON(path, opts...)
@@ -292,14 +302,15 @@ func Or(preds ...Predicate) Predicate         { return expr.Or(preds...) }
 func Not(pred Predicate) Predicate            { return expr.Not(pred) }
 func Where(cond Predicate, x any, y any) Expr { return expr.Where(cond, x, y) }
 
-// Expression functions.
-func Abs(e Expr) Expr   { return expr.Abs(e) }
-func Sqrt(e Expr) Expr  { return expr.Sqrt(e) }
-func Log(e Expr) Expr   { return expr.Log(e) }
-func Exp(e Expr) Expr   { return expr.Exp(e) }
-func Lower(e Expr) Expr { return expr.Lower(e) }
-func Upper(e Expr) Expr { return expr.Upper(e) }
-func Len(e Expr) Expr   { return expr.Len(e) }
+// Expression functions. The bare math names (pd.Abs, pd.Sqrt, ...) apply
+// to NDArrays since Phase 2; use the *Expr suffix inside expressions.
+func AbsExpr(e Expr) Expr  { return expr.Abs(e) }
+func SqrtExpr(e Expr) Expr { return expr.Sqrt(e) }
+func LogExpr(e Expr) Expr  { return expr.Log(e) }
+func ExpExpr(e Expr) Expr  { return expr.Exp(e) }
+func Lower(e Expr) Expr    { return expr.Lower(e) }
+func Upper(e Expr) Expr    { return expr.Upper(e) }
+func Len(e Expr) Expr      { return expr.Len(e) }
 
 // Window and groupby options ----------------------------------------------------
 

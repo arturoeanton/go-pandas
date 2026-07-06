@@ -35,8 +35,9 @@ func (a *NDArray) Floor() *NDArray { return a.unaryScalar(math.Floor) }
 // Ceil rounds each element up.
 func (a *NDArray) Ceil() *NDArray { return a.unaryScalar(math.Ceil) }
 
-// Round rounds each element half away from zero.
-func (a *NDArray) Round() *NDArray { return a.unaryScalar(math.Round) }
+// Round rounds each element half to even (banker's rounding), matching
+// np.round.
+func (a *NDArray) Round() *NDArray { return a.unaryScalar(math.RoundToEven) }
 
 // Clip limits every element to [min, max].
 func (a *NDArray) Clip(min, max float64) *NDArray {

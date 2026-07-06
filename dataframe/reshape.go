@@ -2,9 +2,11 @@ package dataframe
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/arturoeanton/go-pandas/dtype"
 	"github.com/arturoeanton/go-pandas/errs"
+	"github.com/arturoeanton/go-pandas/expr"
 	"github.com/arturoeanton/go-pandas/series"
 )
 
@@ -129,22 +131,31 @@ func (df *DataFrame) pivotWith(indexCol, columnsCol, valuesCol, agg string, fill
 	var rowKeys, colKeys []any
 	rowPos := map[string]int{}
 	colPos := map[string]int{}
-	cells := map[[2]int][]int{}
 	for i := 0; i < df.Len(); i++ {
 		rk := fmt.Sprintf("%v", idxValues[i])
 		ck := fmt.Sprintf("%v", colValues[i])
-		ri, ok := rowPos[rk]
-		if !ok {
-			ri = len(rowKeys)
-			rowPos[rk] = ri
+		if _, ok := rowPos[rk]; !ok {
+			rowPos[rk] = 0
 			rowKeys = append(rowKeys, idxValues[i])
 		}
-		ci, ok := colPos[ck]
-		if !ok {
-			ci = len(colKeys)
-			colPos[ck] = ci
+		if _, ok := colPos[ck]; !ok {
+			colPos[ck] = 0
 			colKeys = append(colKeys, colValues[i])
 		}
+	}
+	// pandas pivot sorts both the index and the column labels.
+	sortAnyValues(rowKeys)
+	sortAnyValues(colKeys)
+	for i, k := range rowKeys {
+		rowPos[fmt.Sprintf("%v", k)] = i
+	}
+	for i, k := range colKeys {
+		colPos[fmt.Sprintf("%v", k)] = i
+	}
+	cells := map[[2]int][]int{}
+	for i := 0; i < df.Len(); i++ {
+		ri := rowPos[fmt.Sprintf("%v", idxValues[i])]
+		ci := colPos[fmt.Sprintf("%v", colValues[i])]
 		cells[[2]int{ri, ci}] = append(cells[[2]int{ri, ci}], i)
 	}
 
@@ -177,6 +188,15 @@ func (df *DataFrame) pivotWith(indexCol, columnsCol, valuesCol, agg string, fill
 		cols = append(cols, series.NewSeries(fmt.Sprint(ckAny), values))
 	}
 	return newFrame(cols, nil)
+}
+
+// sortAnyValues orders labels with the shared value comparator (numbers,
+// strings, times); incomparable values keep their relative order.
+func sortAnyValues(values []any) {
+	sort.SliceStable(values, func(a, b int) bool {
+		c, ok := expr.CompareValues(values[a], values[b])
+		return ok && c < 0
+	})
 }
 
 // Stack is not implemented in v0.1.

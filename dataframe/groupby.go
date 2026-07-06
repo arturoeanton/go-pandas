@@ -300,6 +300,11 @@ func (gb *GroupBy) Var(columns ...string) (*DataFrame, error) { return gb.simple
 // Std computes per-group sample standard deviations.
 func (gb *GroupBy) Std(columns ...string) (*DataFrame, error) { return gb.simpleAgg("std", columns) }
 
+// NUnique counts distinct non-NA values per group.
+func (gb *GroupBy) NUnique(columns ...string) (*DataFrame, error) {
+	return gb.simpleAgg("nunique", columns)
+}
+
 // First takes the first non-missing value per group.
 func (gb *GroupBy) First(columns ...string) (*DataFrame, error) {
 	return gb.simpleAgg("first", columns)

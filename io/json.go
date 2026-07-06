@@ -46,6 +46,47 @@ func ReadJSONTableReader(r stdio.Reader, opts ...JSONOption) (*Table, error) {
 			}
 		}
 		return table, nil
+	case "split":
+		var doc struct {
+			Columns []string `json:"columns"`
+			Index   []any    `json:"index"`
+			Data    [][]any  `json:"data"`
+		}
+		if err := json.NewDecoder(r).Decode(&doc); err != nil {
+			return nil, fmt.Errorf("reading JSON split: %w", err)
+		}
+		return &Table{Columns: doc.Columns, Rows: normalizeRows(doc.Data)}, nil
+	case "columns":
+		var doc map[string]map[string]any
+		if err := json.NewDecoder(r).Decode(&doc); err != nil {
+			return nil, fmt.Errorf("reading JSON columns: %w", err)
+		}
+		var columns []string
+		for name := range doc {
+			columns = append(columns, name)
+		}
+		sort.Strings(columns)
+		// Row keys are shared across columns; sort them for determinism.
+		keySet := map[string]bool{}
+		for _, col := range doc {
+			for k := range col {
+				keySet[k] = true
+			}
+		}
+		var keys []string
+		for k := range keySet {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		table := &Table{Columns: columns}
+		for _, k := range keys {
+			row := make([]any, len(columns))
+			for i, name := range columns {
+				row[i] = normalizeJSONValue(doc[name][k])
+			}
+			table.Rows = append(table.Rows, row)
+		}
+		return table, nil
 	}
 	return nil, errs.NotImplemented("JSON orient " + o.Orient)
 }
@@ -118,6 +159,26 @@ func WriteJSONTable(w stdio.Writer, table *Table, opts ...JSONOption) error {
 		return enc.Encode(records)
 	case "values":
 		return enc.Encode(table.Rows)
+	case "split":
+		idx := make([]any, len(table.Rows))
+		for i := range idx {
+			idx[i] = i
+		}
+		return enc.Encode(map[string]any{
+			"columns": table.Columns,
+			"index":   idx,
+			"data":    table.Rows,
+		})
+	case "columns":
+		doc := make(map[string]map[string]any, len(table.Columns))
+		for j, name := range table.Columns {
+			col := make(map[string]any, len(table.Rows))
+			for i, row := range table.Rows {
+				col[fmt.Sprint(i)] = row[j]
+			}
+			doc[name] = col
+		}
+		return enc.Encode(doc)
 	}
 	return errs.NotImplemented("JSON orient " + o.Orient)
 }

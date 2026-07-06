@@ -31,9 +31,30 @@ func (ix *LocIndexer) Row(label any) (map[string]any, error) {
 	return ix.df.Row(pos)
 }
 
+// LabelRange is an inclusive label slice for Loc().Rows, built with
+// LabelSlice(start, stop). Unlike positional slicing, BOTH endpoints are
+// included, matching pandas df.loc["a":"z"].
+type LabelRange struct {
+	Start any
+	Stop  any
+}
+
+// LabelSlice builds an inclusive label range.
+func LabelSlice(start, stop any) LabelRange { return LabelRange{Start: start, Stop: stop} }
+
 // Rows selects rows by explicit labels (duplicates select every match).
+// A LabelSlice selector expands to the inclusive label range.
 func (ix *LocIndexer) Rows(labels ...any) *LocIndexer {
 	for _, label := range labels {
+		if r, ok := label.(LabelRange); ok {
+			positions, err := ix.df.index.Slice(r.Start, r.Stop)
+			if err != nil {
+				ix.err = err
+				return ix
+			}
+			ix.rowPos = append(ix.rowPos, positions...)
+			continue
+		}
 		positions := ix.df.index.Positions(label)
 		if len(positions) == 0 {
 			ix.err = fmt.Errorf("%w: label %v", errs.ErrInvalidIndex, label)

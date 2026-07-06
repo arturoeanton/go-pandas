@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/arturoeanton/go-pandas/dtype"
+	"github.com/arturoeanton/go-pandas/errs"
 )
 
 // ReadCSVTable parses a CSV file into a neutral Table.
@@ -57,34 +58,62 @@ func ReadCSVTableReader(r stdio.Reader, opts ...CSVOption) (*Table, error) {
 	for _, v := range o.NAValues {
 		naSet[v] = true
 	}
+	if o.KeepDefaultNA {
+		for _, v := range DefaultCSVOptions().NAValues {
+			naSet[v] = true
+		}
+	}
+	// UseCols restricts which physical columns are kept.
+	keep := make([]int, 0, len(table.Columns))
+	if len(o.UseCols) > 0 {
+		want := make(map[string]bool, len(o.UseCols))
+		for _, c := range o.UseCols {
+			want[c] = true
+		}
+		var kept []string
+		for i, name := range table.Columns {
+			if want[name] {
+				keep = append(keep, i)
+				kept = append(kept, name)
+			}
+		}
+		if len(kept) != len(o.UseCols) {
+			return nil, fmt.Errorf("%w: usecols not found in header", errs.ErrColumnNotFound)
+		}
+		table.Columns = kept
+	} else {
+		for i := range table.Columns {
+			keep = append(keep, i)
+		}
+	}
 	for _, rec := range records[start:] {
 		if o.Limit > 0 && len(table.Rows) >= o.Limit {
 			break
 		}
 		row := make([]any, len(table.Columns))
-		for i := range table.Columns {
+		for j, src := range keep {
 			var cell string
-			if i < len(rec) {
-				cell = rec[i]
+			if src < len(rec) {
+				cell = rec[src]
 			}
 			if o.TrimSpace {
 				cell = strings.TrimSpace(cell)
 			}
 			if naSet[cell] {
-				row[i] = nil
+				row[j] = nil
 				continue
 			}
 			switch {
-			case dateCols[table.Columns[i]]:
+			case dateCols[table.Columns[j]]:
 				t, err := parseDate(cell, o.DateFormat)
 				if err != nil {
-					return nil, fmt.Errorf("column %q: %w", table.Columns[i], err)
+					return nil, fmt.Errorf("column %q: %w", table.Columns[j], err)
 				}
-				row[i] = t
+				row[j] = t
 			case o.InferTypes:
-				row[i] = inferCell(cell)
+				row[j] = inferCell(cell)
 			default:
-				row[i] = cell
+				row[j] = cell
 			}
 		}
 		table.Rows = append(table.Rows, row)
