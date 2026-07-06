@@ -1,0 +1,91 @@
+{
+  "cases": [
+    {
+      "name": "head_2",
+      "expected": {
+        "columns": ["country", "name", "age", "salary"],
+        "rows": [
+          ["AR", "Ana", 30, 1000.0],
+          ["AR", "Luis", 40, 2000.0]
+        ]
+      }
+    },
+    {
+      "name": "tail_1",
+      "expected": {
+        "columns": ["country", "name", "age", "salary"],
+        "rows": [
+          ["BR", "Joao", 35, 1500.0]
+        ]
+      }
+    },
+    {
+      "name": "select_name_salary",
+      "expected": {
+        "columns": ["name", "salary"],
+        "rows": [
+          ["Ana", 1000.0],
+          ["Luis", 2000.0],
+          ["Joao", 1500.0]
+        ]
+      }
+    },
+    {
+      "name": "filter_age_gt_30",
+      "expected": {
+        "columns": ["country", "name", "age", "salary"],
+        "rows": [
+          ["AR", "Luis", 40, 2000.0],
+          ["BR", "Joao", 35, 1500.0]
+        ]
+      }
+    },
+    {
+      "name": "sort_salary_desc",
+      "expected": {
+        "columns": ["country", "name", "age", "salary"],
+        "rows": [
+          ["AR", "Luis", 40, 2000.0],
+          ["BR", "Joao", 35, 1500.0],
+          ["AR", "Ana", 30, 1000.0]
+        ]
+      }
+    },
+    {
+      "name": "assign_bonus",
+      "expected": {
+        "columns": ["name", "bonus"],
+        "rows": [
+          ["Ana", 100.0],
+          ["Luis", 200.0],
+          ["Joao", 150.0]
+        ]
+      }
+    },
+    {
+      "name": "melt",
+      "expected": {
+        "columns": ["name", "variable", "value"],
+        "rows": [
+          ["Ana", "math", 9.0],
+          ["Luis", "math", 7.0],
+          ["Ana", "bio", 8.0],
+          ["Luis", "bio", 6.0]
+        ]
+      }
+    },
+    {
+      "name": "rolling_mean_3",
+      "expected": {
+        "columns": ["v"],
+        "rows": [
+          [null],
+          [null],
+          [2.0],
+          [3.0],
+          [4.0]
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "cases": [
+    {
+      "name": "isna",
+      "expected": {
+        "columns": ["a", "b"],
+        "rows": [
+          [false, false],
+          [true, false],
+          [false, true]
+        ]
+      }
+    },
+    {
+      "name": "dropna",
+      "expected": {
+        "columns": ["a", "b"],
+        "rows": [
+          [1, "x"]
+        ]
+      }
+    },
+    {
+      "name": "fillna",
+      "expected": {
+        "columns": ["a", "b"],
+        "rows": [
+          [1, "x"],
+          [0, "y"],
+          [3, "?"]
+        ]
+      }
+    }
+  ]
+}

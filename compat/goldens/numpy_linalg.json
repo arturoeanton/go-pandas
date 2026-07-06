@@ -1,0 +1,7 @@
+{
+  "cases": [
+    {"name": "dot_vectors", "expected": {"shape": [], "data": [32.0]}},
+    {"name": "matvec", "expected": {"shape": [2], "data": [17.0, 39.0]}},
+    {"name": "matmul_2x2", "expected": {"shape": [2, 2], "data": [19.0, 22.0, 43.0, 50.0]}}
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "cases": [
+    {"name": "array_creation", "expected": {"shape": [3], "data": [1.0, 2.0, 3.0]}},
+    {"name": "zeros_2x3", "expected": {"shape": [2, 3], "data": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]}},
+    {"name": "ones_3", "expected": {"shape": [3], "data": [1.0, 1.0, 1.0]}},
+    {"name": "arange_5", "expected": {"shape": [5], "data": [0.0, 1.0, 2.0, 3.0, 4.0]}},
+    {"name": "arange_2_10_2", "expected": {"shape": [4], "data": [2.0, 4.0, 6.0, 8.0]}},
+    {"name": "linspace_0_1_5", "expected": {"shape": [5], "data": [0.0, 0.25, 0.5, 0.75, 1.0]}},
+    {"name": "reshape_2x3", "expected": {"shape": [2, 3], "data": [0.0, 1.0, 2.0, 3.0, 4.0, 5.0]}},
+    {"name": "transpose_2x3", "expected": {"shape": [3, 2], "data": [0.0, 3.0, 1.0, 4.0, 2.0, 5.0]}},
+    {"name": "sum_all", "expected": {"shape": [], "data": [15.0]}},
+    {"name": "mean_all", "expected": {"shape": [], "data": [2.5]}},
+    {"name": "std_all", "expected": {"shape": [], "data": [1.707825127659933]}},
+    {"name": "sqrt", "expected": {"shape": [3], "data": [1.0, 2.0, 3.0]}},
+    {"name": "exp", "expected": {"shape": [2], "data": [1.0, 2.718281828459045]}},
+    {"name": "log", "expected": {"shape": [2], "data": [0.0, 1.0]}}
+  ]
+}
