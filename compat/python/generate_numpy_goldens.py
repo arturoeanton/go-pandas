@@ -248,6 +248,10 @@ def hardening_v1001():
     cases = [
         case("take_repeated", "np.take with repeated indexes",
              ser_array(np.take(np.array([10.0, 20.0, 30.0]), [2, 2, 0, 2]))),
+        case("take_2d_axis0", "np.take(2d, [2, 0], axis=0)",
+             ser_array(np.take(np.arange(12.0).reshape(3, 4), [2, 0], axis=0))),
+        case("take_2d_axis1", "np.take(2d, [3, 1, 1], axis=1)",
+             ser_array(np.take(np.arange(12.0).reshape(3, 4), [3, 1, 1], axis=1))),
     ]
     write("hardening_v1001.json", "numpy.hardening_v1001", cases)
 

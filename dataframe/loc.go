@@ -5,6 +5,7 @@ import (
 
 	"github.com/arturoeanton/go-pandas/errs"
 	"github.com/arturoeanton/go-pandas/index"
+	"github.com/arturoeanton/go-pandas/series"
 )
 
 // LocIndexer selects rows by index label and columns by name, like df.loc:
@@ -134,6 +135,47 @@ func (ix *LocIndexer) tupleArgs(components []any) (*index.MultiIndex, []any, boo
 		}
 	}
 	return mi, components, true
+}
+
+// XS returns the cross-section of a MultiIndex frame (v1.0-rc),
+// pandas' df.xs(key, level=...): the rows whose component at the level
+// (name or position; default the first level) equals key, with that
+// level DROPPED from the result index. Duplicate labels return every
+// matching row; unknown keys error like Loc does.
+func (df *DataFrame) XS(key any, level ...any) (*DataFrame, error) {
+	mi, ok := df.index.(*index.MultiIndex)
+	if !ok {
+		return nil, fmt.Errorf("%w: XS needs a MultiIndex (index is %T)", errs.ErrInvalidIndex, df.index)
+	}
+	sel := any(0)
+	switch len(level) {
+	case 0:
+	case 1:
+		sel = level[0]
+	default:
+		return nil, fmt.Errorf("%w: XS takes at most one level selector", errs.ErrInvalidOperation)
+	}
+	positions, l, err := mi.LevelPositions(sel, key)
+	if err != nil {
+		return nil, err
+	}
+	if len(positions) == 0 {
+		return nil, fmt.Errorf("%w: key %v not found at level %v", errs.ErrInvalidIndex, key, sel)
+	}
+	taken, err := df.Take(positions)
+	if err != nil {
+		return nil, err
+	}
+	takenMI := taken.index.(*index.MultiIndex)
+	dropped, err := takenMI.DropLevel(l)
+	if err != nil {
+		return nil, err
+	}
+	cols := make([]*series.Series, len(taken.columns))
+	for i, c := range taken.columns {
+		cols[i] = c.WithIndexed(dropped)
+	}
+	return newFrame(cols, dropped)
 }
 
 // Cols selects columns by name.

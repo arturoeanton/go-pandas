@@ -13,7 +13,7 @@
 go-pandas is a compatibility-oriented data toolkit: pandas-style
 `DataFrame`/`Series` and NumPy-style `NDArray` with the same concepts,
 names and behavior — verified against **golden outputs generated from
-real pandas and NumPy** (295 test cases, pandas 2.3 / NumPy 2.0).
+real pandas and NumPy** (301 test cases, pandas 2.3 / NumPy 2.0).
 
 Since v0.10, the **reshape surface is closed for common workflows**:
 `Stack`/`Unstack` over MultiIndex, `PivotTable` with multiple values
@@ -45,17 +45,20 @@ columns and CSV parsing infer typed columns, and arithmetic promotes
 dtypes NumPy-style (`int + float64 → float64`). Mixed data falls back to
 object storage — `StorageDType()` / `IsObjectBacked()` tell you which.
 
-## Status
+## Release candidate status
 
-go-pandas is **pre-v1**. The API is still experimental but **nearing
-freeze** — the stability of every public group is classified in
+go-pandas is preparing for **v1.0**. The API freeze audit is documented
+in [docs/api_freeze.md](docs/api_freeze.md), the v1.0 plan and policies
+in [docs/v1_plan.md](docs/v1_plan.md), and known differences from
+pandas/NumPy are treated as **part of the compatibility contract**.
+The API is still experimental but frozen in all but name — the stability of every public group is classified in
 [docs/api_freeze.md](docs/api_freeze.md). The core DataFrame, Series,
 NDArray, GroupBy, Merge, Concat, Categorical, MultiIndex and
 time-series paths are golden-tested against real pandas/NumPy outputs,
 and known differences are documented, never hidden. Compatibility is
 conceptual and behavioral where tested, not Python syntax
 compatibility. Current coverage, computed from the matrices with
-`go run ./cmd/compat-report`: pandas 93% of 134 tracked rows, NumPy
+`go run ./cmd/compat-report`: pandas 94% of 136 tracked rows, NumPy
 91% of 54 tracked rows — including partial rows
 ([full report](compat/coverage_report.md), [what's intentionally
 different](compat/known_differences.md), [prerelease

@@ -1,5 +1,61 @@
 # Changelog
 
+## v1.0.0-rc.1 - Final API Contract Decisions
+
+### API Contract
+- All three experimental items resolved; docs/api_freeze.md now uses
+  the final categories (stable / experimental-post-v1 / deprecated /
+  planned-post-v1) with no ambiguous group:
+  - **NDArray string semantics — FINAL**: error-channel methods return
+    ErrTypeMismatch; error-less legacy forms are compatibility helpers
+    with documented values (NaN / all-false / all-NaN); strings are
+    never silently parsed as numbers. Examples added to the NumPy
+    translation guide; errors.Is coverage in the sentinel suite.
+  - **MultiIndex level operations — IMPLEMENTED** (see below).
+  - **Resample scope — PINNED**: observed-bucket H/D/W/MS/ME
+    aggregations are the v1.0 contract; closed/label/origin/offset are
+    planned-post-v1 as additive functional options (no unsupported
+    options exposed today; unknown frequencies error).
+- docs/v1_plan.md: what is stable in v1.0, what stays experimental,
+  what is out of scope, compatibility philosophy, upgrade/patch/
+  deprecation policies and the post-v1 roadmap. README carries the
+  release-candidate status.
+
+### MultiIndex
+- `DropLevel(name|position)` (2+ remaining levels -> MultiIndex, one
+  -> flat index), `SwapLevel(a, b)` (default: last two levels),
+  `ReorderLevels(order...)` — pandas negative positions supported,
+  names preserved, inputs immutable, invariants + lookup re-verified.
+- `df.XS(key, level)` cross-sections: rows matching the level
+  component with that level dropped from the result index; duplicate
+  labels return every row; unknown keys error (ErrInvalidIndex).
+- 4 goldens against pandas (droplevel/swaplevel/xs by name and
+  position, duplicates).
+
+### Performance
+- **Typed Unstack**: per-column typed cell scatter
+  (column.UnstackGather) plus int-keyed row grouping — 21 ms / 798K
+  allocs -> **6.9 ms / 595 allocs** at 100K x 2 (categorical/object
+  sources keep the boxed fallback; a categorical unstacks to its
+  labels' inferred dtype, documented).
+- **Typed N-D NDArray.Take**: contiguous arrays gather inner-stride
+  slabs with copy() — the 100K 2-D benchmark runs in **185 µs / 7
+  allocs** (previously ~8 ms boxed); non-contiguous views keep the
+  generic copier. 2 NumPy goldens (axis 0/1).
+
+### Fuzzing
+- Full long pass: 8 key targets x 90 s (12 minutes total) — all clean.
+
+### Compatibility
+- pandas matrix: 136 rows, 94% (3 level-ops rows replaced 1 planned
+  row); NumPy 54 rows, 91%. Goldens 295 -> 301 (pandas 2.3.3 / NumPy
+  2.0.2). Performance-limitations section updated: Unstack and N-D
+  Take are no longer listed as boxed.
+
+### Known limitations
+- Merge on MultiIndex levels, label-range MultiIndex slicing, resample
+  options, keepdims and linalg-beyond-MatMul remain planned-post-v1.
+
 ## v0.10.2 - Release Candidate Polish and API Freeze Audit
 
 ### API Audit

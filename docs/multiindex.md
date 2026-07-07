@@ -132,7 +132,10 @@ Tuple labels print pandas-style; NA components print as NA:
 - No label-range slicing (`MultiIndex.Slice` returns ErrNotImplemented;
   pandas requires a lexsorted index for that too).
 - Prefix lookup scans rather than using a sorted structure.
-- No `swaplevel`/`droplevel`/`reorder_levels`; no partial-level `xs`.
+- `DropLevel`/`SwapLevel`/`ReorderLevels` and `df.XS(key, level)` exist
+  since v1.0-rc.1 (name or position selectors, pandas negative
+  positions; XS drops the matched level and returns every duplicate
+  match).
 - Merge on index levels not implemented (join-by-index works through
   boxed alignment).
 - `Series` MultiIndex support is display/Take-level only.

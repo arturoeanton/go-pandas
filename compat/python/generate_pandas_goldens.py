@@ -666,7 +666,27 @@ def hardening_v1001_suite():
     write("hardening_v1001.json", "pandas.hardening_v1001", cases)
 
 
+def levels_rc1_suite():
+    mi = pd.MultiIndex.from_tuples(
+        [("AR", "BA", 2023), ("AR", "CO", 2024), ("BR", "SP", 2023), ("AR", "BA", 2024)],
+        names=["c", "t", "y"])
+    df = pd.DataFrame({"v": [1.0, 2.0, 3.0, 4.0]}, index=mi)
+    cases = [
+        case("rc1_droplevel", "df.droplevel('t') tuples as strings",
+             ser_series(pd.Series([f"{a}|{b}" for a, b in df.droplevel("t").index]))),
+        case("rc1_swaplevel", "df.swaplevel(0, 2) first tuple + names",
+             ser_series(pd.Series(list(df.swaplevel(0, 2).index.names) +
+                                  [str(x) for x in df.swaplevel(0, 2).index[0]]))),
+        case("rc1_xs_level0", "df.xs('AR', level='c')",
+             ser_frame(df.xs("AR", level="c").reset_index())),
+        case("rc1_xs_level1", "df.xs('BA', level=1) duplicate labels",
+             ser_frame(df.xs("BA", level=1).reset_index())),
+    ]
+    write("levels_rc1.json", "pandas.levels_rc1", cases)
+
+
 def main():
+    levels_rc1_suite()
     hardening_v1001_suite()
     reshape_v10_suite()
     timeseries_suite()

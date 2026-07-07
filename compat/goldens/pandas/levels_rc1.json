@@ -1,0 +1,83 @@
+{
+ "suite": "pandas.levels_rc1",
+ "pandas_version": "2.3.3",
+ "cases": [
+  {
+   "name": "rc1_droplevel",
+   "operation": "df.droplevel('t') tuples as strings",
+   "expected": {
+    "values": [
+     "AR|2023",
+     "AR|2024",
+     "BR|2023",
+     "AR|2024"
+    ]
+   }
+  },
+  {
+   "name": "rc1_swaplevel",
+   "operation": "df.swaplevel(0, 2) first tuple + names",
+   "expected": {
+    "values": [
+     "y",
+     "t",
+     "c",
+     "2023",
+     "BA",
+     "AR"
+    ]
+   }
+  },
+  {
+   "name": "rc1_xs_level0",
+   "operation": "df.xs('AR', level='c')",
+   "expected": {
+    "columns": [
+     "t",
+     "y",
+     "v"
+    ],
+    "rows": [
+     [
+      "BA",
+      2023,
+      1.0
+     ],
+     [
+      "CO",
+      2024,
+      2.0
+     ],
+     [
+      "BA",
+      2024,
+      4.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "rc1_xs_level1",
+   "operation": "df.xs('BA', level=1) duplicate labels",
+   "expected": {
+    "columns": [
+     "c",
+     "y",
+     "v"
+    ],
+    "rows": [
+     [
+      "AR",
+      2023,
+      1.0
+     ],
+     [
+      "AR",
+      2024,
+      4.0
+     ]
+    ]
+   }
+  }
+ ]
+}

@@ -1,15 +1,19 @@
-# Public API freeze audit (v0.10.2)
+# Public API freeze audit (v1.0.0-rc.1)
 
-This is the pre-v1 stability classification of the public surface.
+This is the v1.0 stability classification of the public surface.
 Classes:
 
-- **stable** — golden-tested, fuzz-hardened, no rename planned; breaking
-  changes after v1.0 only with a major version.
-- **experimental** — behavior is verified, but the *shape* of the API
-  (names, option style, return types) may still adjust before v1.0,
-  with deprecated aliases where feasible.
+- **stable** — golden-tested, fuzz-hardened, no rename planned; the
+  v1.0 contract. Breaking changes only with a major version.
+- **experimental-post-v1** — usable and verified, but the API shape may
+  still adjust in a v1.x (with deprecated aliases). Each entry says why
+  and what is safe to rely on.
 - **deprecated** — kept for compatibility, do not use in new code.
-- **planned** — documented but not implemented.
+- **planned-post-v1** — documented but not implemented.
+
+No group is ambiguously classified; the former "experimental" items
+were resolved in rc.1 (NDArray string semantics finalized, MultiIndex
+level operations implemented, resample scope pinned).
 
 Regenerate the raw inventory with `go doc github.com/arturoeanton/go-pandas`
 and `go doc ./<pkg>` per package.
@@ -44,17 +48,25 @@ Notes: `Cat()` returns `(*CategoricalAccessor, error)`; comparisons
 have no error channel and use the documented incomparable-is-false
 rule.
 
-## NDArray — stable core, experimental edges
+## NDArray — stable
 
-Stable: constructors (`Array/ArrayOf/ArrayInt/.../Arange/Zeros/Ones/
+Constructors (`Array/ArrayOf/ArrayInt/.../Arange/Zeros/Ones/
 Linspace/FromSlice/MustFromSlice`), shape ops (`Reshape/T/Flatten/
 Slice`), broadcasting arithmetic, ufuncs, reductions (`Sum/Mean/Min/
 Max/Std/Var` + `*All` + `DDof`), `MatMul`, `Sort/ArgSort/Unique`,
-`Take` (1-D typed), `IsIn`, `SearchSorted`, `Where/Mask`, random.
+`Take` (1-D and contiguous N-D typed since rc.1), `IsIn`,
+`SearchSorted`, `Where/Mask`, random.
 
-Experimental: string-array semantics for numeric ops (documented
-NaN/all-false results, v0.10.1), N-D `Take` performance, linalg
-surface beyond MatMul (planned via adapters).
+**String-array semantics are FINAL (v1.0 contract):** methods with an
+error channel return `ErrTypeMismatch` for numeric operations on
+string arrays; the error-less legacy forms are compatibility helpers
+with documented results (`*All` reductions → NaN, scalar comparisons →
+all-false, scalar math/ufuncs → all-NaN float64). Strings are never
+silently reinterpreted as numbers. See known_differences.md and
+docs/numpy_translation_guide.md.
+
+Planned-post-v1: linalg beyond MatMul (gonum adapter module),
+keepdims/axis tuples.
 
 ## Index family — stable
 
@@ -62,15 +74,20 @@ surface beyond MatMul (planned via adapters).
 `DatetimeIndex` (NA mask, `Start/End/IsMonotonicIncreasing/Times/
 RawTimes`), `index.Take`, `FromLabels`.
 
-## MultiIndex — stable storage, experimental level ops
+## MultiIndex — stable
 
-Stable: `NewMultiIndexFromArrays`, `MultiIndexFromArrays`,
+`NewMultiIndexFromArrays`, `MultiIndexFromArrays`,
 `MultiIndexFromTuples`, `pd.Tuple`, `Names/Levels/Codes/NLevels/Tuple/
 Tuples/IsNA`, `PositionsTuple/PositionsPrefix`, `Take/SlicePos`,
-`Loc().Tuple/TuplePrefix`, `NewMultiIndexFromCodes` (engine
-constructor).
+`Loc().Tuple/TuplePrefix`, and — since rc.1 — `DropLevel`, `SwapLevel`,
+`ReorderLevels` (name or position selectors, pandas negative positions)
+plus `df.XS(key, level)` cross-sections. `NewMultiIndexFromCodes` is
+the engine constructor (caller owns invariants).
 
-Planned: label-range slicing, swaplevel/droplevel/xs, merge on levels.
+Experimental-post-v1: label-range slicing and partial-key selection
+beyond TuplePrefix/XS — the shapes may change when sorted-index
+slicing lands; TuplePrefix and XS themselves are stable.
+Planned-post-v1: merge on index levels.
 
 ## Categorical — stable
 
@@ -87,10 +104,14 @@ options `GroupDropNA/GroupSort/GroupAsIndex` and chainable `AsIndex`.
 
 Note: go-pandas defaults to as_index=false (documented difference).
 
-## Resampler — stable within its documented scope
+## Resampler — stable within its documented scope (final)
 
 `Resample("H"/"D"/"W"/"MS"/"M"/"ME")` + `Sum/Mean/Count/Min/Max/First/
-Last`. Observed buckets only; options (closed/label/origin) planned.
+Last`, observed buckets only — this scope is the v1.0 contract; the
+API exposes no unsupported options (unknown frequencies error with
+ErrInvalidOperation). Advanced options (closed/label/origin/offset)
+are **planned-post-v1** and will arrive as functional options without
+changing the existing calls.
 
 ## Expr / Query — stable grammar as documented
 
@@ -131,9 +152,11 @@ None currently — the v0.9/v0.10 placeholder replacements (`Resample`,
 `Stack`) removed APIs that only ever returned ErrNotImplemented, with
 CHANGELOG migration notes instead of aliases.
 
-## Freeze verdict
+## Freeze verdict (rc.1)
 
-The surface above marked **stable** is the v1.0 candidate API. The
-experimental edges (NDArray string semantics, MultiIndex level ops,
-resample options) either stabilize or gain documented behavior before
-v1.0 — see docs/release_checklist.md.
+Every group above marked **stable** is the v1.0 contract. The three
+former experimental items were resolved: NDArray string semantics are
+final, MultiIndex level operations (DropLevel/SwapLevel/ReorderLevels/
+XS) shipped and are stable, and the Resampler scope is pinned. What
+remains beyond v1.0 is listed per group as experimental-post-v1 or
+planned-post-v1 — see docs/v1_plan.md for policies.

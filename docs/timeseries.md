@@ -101,7 +101,8 @@ Requirements and semantics:
   frequency grid with empty buckets; go-pandas does not (documented,
   consistent with observed-only groupby).
 - Output index is a `DatetimeIndex` of bucket labels, ascending.
-- No `closed`/`label`/`origin`/`offset` options yet.
+- No `closed`/`label`/`origin`/`offset` options — planned post-v1 as
+  functional options; the current call surface is the v1.0 contract.
 
 ### Frequencies
 

@@ -201,3 +201,20 @@ func BenchmarkNDArrayTakeString100K(b *testing.B) {
 	}
 	benchTakeTyped(b, ndarray.ArrayString(data), len(data))
 }
+
+func BenchmarkNDArrayTake2D100K(b *testing.B) {
+	m, err := ndarray.Arange(100_000).Reshape(1000, 100)
+	if err != nil {
+		b.Fatal(err)
+	}
+	indices := make([]int, 1000)
+	for i := range indices {
+		indices[i] = (i * 7) % 1000
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := m.Take(indices, 0); err != nil {
+			b.Fatal(err)
+		}
+	}
+}

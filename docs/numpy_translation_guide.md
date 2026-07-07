@@ -4,6 +4,21 @@ Since v0.3 arrays store **real typed backings**: `[]bool`, `[]int`,
 `[]int64`, `[]float32`, `[]float64` and `[]string`. Arithmetic promotes
 dtypes NumPy-style. See [dtype_semantics.md](dtype_semantics.md).
 
+## String arrays and numeric operations (v1.0 contract)
+
+NumPy raises on invalid ufunc dtypes; go-pandas returns errors where a
+channel exists and documented values where it does not — strings are
+never silently reinterpreted as numbers:
+
+```go
+s := ndarray.ArrayString([]string{"a", "b"})
+_, err := s.Add(pd.Array([]float64{1, 2})) // ErrTypeMismatch
+_, err = s.Sum(pd.Axis(0))                 // ErrTypeMismatch
+total := s.SumAll()                        // NaN (no error channel)
+mask := s.GtScalar(1)                      // all-false BoolArray
+sq := pd.Sqrt(s)                           // all-NaN float64 array
+```
+
 ## Array creation
 
 ```python

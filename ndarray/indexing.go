@@ -105,6 +105,12 @@ func (a *NDArray) Take(indices []int, axis int) (*NDArray, error) {
 	if len(a.shape) == 1 && a.isContiguous() && a.offset == 0 {
 		return a.take1DTyped(indices)
 	}
+	// Contiguous N-D arrays gather typed slabs along the axis
+	// (v1.0-rc — previously boxed per slice); views keep the generic
+	// copier below.
+	if a.isContiguous() && a.offset == 0 {
+		return a.takeAxisTyped(indices, axis)
+	}
 	outShape := a.Shape()
 	outShape[axis] = len(indices)
 	out := newDense(allocData(a.dtype, shapeSize(outShape)), outShape, a.dtype)
@@ -192,6 +198,64 @@ func (a *NDArray) take1DTyped(indices []int) (*NDArray, error) {
 		return nil, fmt.Errorf("%w: take on %s array", errs.ErrTypeMismatch, a.dtype)
 	}
 	return newDense(data, []int{len(resolved)}, a.dtype), nil
+}
+
+// takeAxisTyped gathers a contiguous N-D array along an axis by
+// copying inner-stride slabs — one copy() per (outer, index) pair, no
+// per-value boxing (v1.0-rc). Negative indices wrap once.
+func (a *NDArray) takeAxisTyped(indices []int, axis int) (*NDArray, error) {
+	dim := a.shape[axis]
+	resolved := make([]int, len(indices))
+	for i, src := range indices {
+		if src < 0 {
+			src += dim
+		}
+		if src < 0 || src >= dim {
+			return nil, fmt.Errorf("%w: take index %d out of range for axis %d with size %d", errs.ErrIndexOutOfBounds, indices[i], axis, dim)
+		}
+		resolved[i] = src
+	}
+	outer, inner := 1, 1
+	for d := 0; d < axis; d++ {
+		outer *= a.shape[d]
+	}
+	for d := axis + 1; d < len(a.shape); d++ {
+		inner *= a.shape[d]
+	}
+	outShape := a.Shape()
+	outShape[axis] = len(resolved)
+
+	var data any
+	switch src := a.data.(type) {
+	case []bool:
+		data = takeAxisSlabs(src, outer, dim, inner, resolved)
+	case []int:
+		data = takeAxisSlabs(src, outer, dim, inner, resolved)
+	case []int64:
+		data = takeAxisSlabs(src, outer, dim, inner, resolved)
+	case []float32:
+		data = takeAxisSlabs(src, outer, dim, inner, resolved)
+	case []float64:
+		data = takeAxisSlabs(src, outer, dim, inner, resolved)
+	case []string:
+		data = takeAxisSlabs(src, outer, dim, inner, resolved)
+	default:
+		return nil, fmt.Errorf("%w: take on %s array", errs.ErrTypeMismatch, a.dtype)
+	}
+	return newDense(data, outShape, a.dtype), nil
+}
+
+func takeAxisSlabs[T any](src []T, outer, dim, inner int, resolved []int) []T {
+	out := make([]T, outer*len(resolved)*inner)
+	pos := 0
+	for o := 0; o < outer; o++ {
+		base := o * dim * inner
+		for _, idx := range resolved {
+			copy(out[pos:pos+inner], src[base+idx*inner:base+(idx+1)*inner])
+			pos += inner
+		}
+	}
+	return out
 }
 
 // copyInto copies src's logical elements into dst (equal sizes, same

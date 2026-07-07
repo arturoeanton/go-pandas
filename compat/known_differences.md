@@ -271,12 +271,11 @@ docs/timeseries.md). Documented differences:
 
 ## Performance limitations (not semantic differences)
 
-These paths are correct but boxed; results match the typed paths, only
-slower (documented in docs/benchmarking.md, scheduled in the roadmap):
-
-- `Unstack` rebuilds cells through `[]any`.
-- N-D `NDArray.Take` (the axis form) copies per slice; the 1-D
-  contiguous form is typed (v0.10.1).
+- `Unstack` and `NDArray.Take` (1-D and contiguous N-D) are typed
+  since v1.0-rc.1; only non-contiguous NDArray views and
+  object/categorical-backed unstack sources keep boxed fallbacks.
+- A categorical series unstacks to columns of its labels' inferred
+  dtype (usually string), not categorical columns (documented).
 - Object-backed columns always use boxed fallbacks (by design).
 
 ## NumPy linear algebra gaps

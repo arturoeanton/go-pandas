@@ -43,7 +43,9 @@ Differences in behavior are documented in [known_differences.md](known_differenc
 | groupby(as_index=True) | GroupBy(...).AsIndex(true) | partial | go-pandas defaults to as_index=false (documented) |
 | concat with MultiIndex | pd.Concat | partial | same level count stacks; mixed shapes -> boxed tuples |
 | merge/join on MultiIndex levels | — | planned | join BY index works via boxed tuple alignment |
-| mi.swaplevel / droplevel / xs | — | planned | |
+| mi.droplevel | mi.DropLevel(name/pos) | done | 2 levels left -> MultiIndex, 1 -> flat index (v1.0-rc) |
+| mi.swaplevel / reorder_levels | mi.SwapLevel / mi.ReorderLevels | done | name or position, negative positions (v1.0-rc) |
+| df.xs(key, level=...) | df.XS(key, level) | done | drops the matched level; duplicates return all rows (v1.0-rc) |
 
 ## Mutation and transforms
 

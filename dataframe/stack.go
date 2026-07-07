@@ -3,6 +3,7 @@ package dataframe
 import (
 	"fmt"
 	"sort"
+	"strconv"
 
 	"github.com/arturoeanton/go-pandas/errs"
 	"github.com/arturoeanton/go-pandas/index"
@@ -133,27 +134,41 @@ func UnstackSeries(s *series.Series) (*DataFrame, error) {
 	}
 
 	// Row keys: leading level code tuples, first grouped then sorted by
-	// code order (level order == sorted labels, pandas parity).
-	type rowKey string
-	encode := func(i int) rowKey {
-		key := make([]byte, 0, 8*last)
-		for l := 0; l < last; l++ {
-			key = append(key, fmt.Sprintf("%d,", codes[l][i])...)
-		}
-		return rowKey(key)
-	}
-	rowID := make(map[rowKey]int)
+	// code order (level order == sorted labels, pandas parity). One
+	// leading level (the 2-level common case) keys by the code itself;
+	// deeper indexes build compact byte keys (v1.0-rc — previously
+	// fmt.Sprintf per row).
 	var rowFirst []int
 	rowOf := make([]int, s.Len())
-	for i := 0; i < s.Len(); i++ {
-		k := encode(i)
-		id, ok := rowID[k]
-		if !ok {
-			id = len(rowFirst)
-			rowID[k] = id
-			rowFirst = append(rowFirst, i)
+	if last == 1 {
+		rowID := make(map[int32]int)
+		lead := codes[0]
+		for i := 0; i < s.Len(); i++ {
+			id, ok := rowID[lead[i]]
+			if !ok {
+				id = len(rowFirst)
+				rowID[lead[i]] = id
+				rowFirst = append(rowFirst, i)
+			}
+			rowOf[i] = id
 		}
-		rowOf[i] = id
+	} else {
+		rowID := make(map[string]int)
+		buf := make([]byte, 0, 12*last)
+		for i := 0; i < s.Len(); i++ {
+			buf = buf[:0]
+			for l := 0; l < last; l++ {
+				buf = strconv.AppendInt(buf, int64(codes[l][i]), 10)
+				buf = append(buf, ',')
+			}
+			id, ok := rowID[string(buf)]
+			if !ok {
+				id = len(rowFirst)
+				rowID[string(buf)] = id
+				rowFirst = append(rowFirst, i)
+			}
+			rowOf[i] = id
+		}
 	}
 	order := make([]int, len(rowFirst))
 	for i := range order {
@@ -174,15 +189,15 @@ func UnstackSeries(s *series.Series) (*DataFrame, error) {
 		rowRank[id] = rank
 	}
 
-	// Fill the cell grid; duplicates error like pandas.
+	// Resolve every source row's output cell; duplicates error like
+	// pandas.
 	nRows, nCols := len(order), len(colCodes)
-	cells := make([][]any, nCols)
+	cIdx := make([]int, s.Len())
+	rIdx := make([]int, s.Len())
 	filled := make([][]bool, nCols)
-	for j := range cells {
-		cells[j] = make([]any, nRows)
+	for j := range filled {
 		filled[j] = make([]bool, nRows)
 	}
-	sv := s.Values()
 	for i := 0; i < s.Len(); i++ {
 		c := codes[last][i]
 		if c < 0 {
@@ -194,7 +209,22 @@ func UnstackSeries(s *series.Series) (*DataFrame, error) {
 			return nil, fmt.Errorf("%w: index contains duplicate entries, cannot unstack (aggregate with PivotTable)", errs.ErrInvalidOperation)
 		}
 		filled[j][r] = true
-		cells[j][r] = sv[i]
+		cIdx[i], rIdx[i] = j, r
+	}
+	// Typed scatter for typed backings (v1.0-rc); boxed fallback for
+	// object/categorical sources (categorical unstacks to its labels'
+	// inferred dtype — documented).
+	typedCols, typedOK := column.UnstackGather(s.Storage(), cIdx, rIdx, nCols, nRows)
+	var cells [][]any
+	if !typedOK {
+		cells = make([][]any, nCols)
+		for j := range cells {
+			cells[j] = make([]any, nRows)
+		}
+		sv := s.Values()
+		for i := 0; i < s.Len(); i++ {
+			cells[cIdx[i]][rIdx[i]] = sv[i]
+		}
 	}
 
 	// Row index: one leading level -> plain index, several -> MultiIndex.
@@ -228,6 +258,10 @@ func UnstackSeries(s *series.Series) (*DataFrame, error) {
 	cols := make([]*series.Series, nCols)
 	for j, c := range colCodes {
 		name := fmt.Sprint(levels[last][c])
+		if typedOK {
+			cols[j] = series.Assemble(name, typedCols[j], idx)
+			continue
+		}
 		cols[j] = series.Assemble(name, column.Infer(cells[j]), idx)
 	}
 	return newFrame(cols, idx)

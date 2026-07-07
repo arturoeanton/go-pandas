@@ -92,3 +92,20 @@ func init() {
 		numpyCases[name] = fn
 	}
 }
+
+func init() {
+	numpyCases["take_2d_axis0"] = func(t *testing.T) (any, error) {
+		m, err := ndarray.Arange(12).Reshape(3, 4)
+		if err != nil {
+			return nil, err
+		}
+		return m.Take([]int{2, 0}, 0)
+	}
+	numpyCases["take_2d_axis1"] = func(t *testing.T) (any, error) {
+		m, err := ndarray.Arange(12).Reshape(3, 4)
+		if err != nil {
+			return nil, err
+		}
+		return m.Take([]int{3, 1, 1}, 1)
+	}
+}
