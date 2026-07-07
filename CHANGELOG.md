@@ -1,5 +1,47 @@
 # Changelog
 
+## v0.6.1 - Typed Concat and Stability Audit
+
+### Added
+- `column.ConcatParts`: typed vertical concat engine — same-dtype
+  segments append into one typed buffer; compatible numeric mixes
+  promote once (int+int64→Int64, int+float64→Float64, bool+int→Int,
+  float32+float64→Float64) into one typed buffer; columns missing from a
+  frame become masked NA gaps; only genuinely incompatible columns
+  (string+numeric, time+string, object inputs) fall back to object — per
+  column.
+- Typed index concatenation for preserved (non-ignored) indexes:
+  integer label families → Int64Index, string → StringIndex, datetime →
+  DatetimeIndex, mixed → boxed labels as-is.
+- `pd.ConcatSeries(...)`: small typed Series concat with the same
+  promotion rules.
+- docs/concat_engine.md; 3 new pandas goldens (join=inner, axis=1,
+  numeric promotion). Golden total: 243.
+
+### Improved
+- `pd.Concat` axis=0 no longer boxes every cell through Values()/Infer;
+  axis=1 assembles typed column copies sharing one index (no per-column
+  deep re-copy).
+- Preserved-index concat used to stringify labels into a StringIndex;
+  labels now keep their type (behavior improvement, documented).
+
+### Performance (Apple M4, 100K+100K rows, measured)
+- Same schema: 1.24 ms / **17 allocs** (allocations scale with columns,
+  not rows).
+- Outer with missing column: 0.65 ms / 23 allocs; numeric promotion:
+  0.24 ms / 12 allocs; axis=1: 0.92 ms / 24 allocs; object fallback:
+  4.7 ms / 22 allocs.
+
+### Compatibility
+- All pre-existing concat goldens and tests pass unchanged. With this,
+  every major materialization path — filter, gather, groupby, merge,
+  concat — is typed end to end.
+
+### Known limitations
+- axis=1 aligns positionally (equal row counts required); no label
+  alignment.
+- Object-backed inputs concat through the boxed path.
+
 ## v0.6.0 - Typed Merge / Join Engine
 
 ### Added

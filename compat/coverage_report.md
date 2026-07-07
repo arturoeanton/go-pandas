@@ -13,7 +13,7 @@ pandas 2.3.3 / NumPy 2.0.2 (`compat/goldens/`), all passing. A matrix row
 can group several closely-related pandas/NumPy APIs, so these counts are
 rows tracked, not individual Python functions.
 
-## pandas compatibility (99 rows tracked, 92 implemented, 93%)
+## pandas compatibility (100 rows tracked, 93 implemented, 93%)
 
 | Area | Rows tracked | Implemented | Coverage |
 |---|---:|---:|---:|
@@ -24,7 +24,7 @@ rows tracked, not individual Python functions.
 | Series | 15 | 15 | 100% |
 | String and datetime accessors | 11 | 10 | 90% |
 | GroupBy | 7 | 6 | 85% |
-| Merge / join / concat | 6 | 6 | 100% |
+| Merge / join / concat | 7 | 7 | 100% |
 | Reshape and window | 9 | 6 | 66% |
 | IO | 9 | 8 | 88% |
 

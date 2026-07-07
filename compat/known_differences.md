@@ -110,6 +110,22 @@ falls back to a boxed index with missing labels.
 - Since v0.6 the engine is typed (docs/merge_engine.md); object-backed
   keys keep the historical `%v` matching.
 
+## Concat (v0.6.1 typed engine)
+
+- Column order: first frame's columns, then new columns in encounter
+  order; `join="inner"` keeps the intersection.
+- Compatible numeric columns promote (int+float64→float64, ...); a
+  string+numeric or time+string column falls back to object storage —
+  only that column. pandas coerces some of these differently (e.g. to
+  object with original values, which matches, but pandas never has a
+  "typed vs object" storage distinction to preserve).
+- axis=1 requires equal row counts and aligns positionally — no label
+  alignment (pandas aligns on the index). Duplicate names get _1/_2
+  suffixes (pandas keeps duplicates).
+- Preserved (non-ignored) indexes concatenate typed since v0.6.1:
+  integer label families produce an Int64Index (previously labels were
+  stringified into a StringIndex).
+
 ## GroupBy / aggregation naming
 
 `Agg`/`AggList` name output columns `column_agg` (`salary_mean`). The

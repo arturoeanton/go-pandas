@@ -267,6 +267,11 @@ def merge_join_concat():
         case("merge_cross", "merge how=cross", ser_frame(cross_l.merge(cross_r, how="cross"))),
         case("concat_rows", "pd.concat ignore_index", ser_frame(pd.concat([c1, c2], ignore_index=True))),
         case("concat_union", "pd.concat column union", ser_frame(pd.concat([c1, c3], ignore_index=True))),
+        case("concat_join_inner", "pd.concat join=inner", ser_frame(pd.concat([c1, c3], join="inner", ignore_index=True))),
+        case("concat_axis1", "pd.concat axis=1", ser_frame(pd.concat(
+            [pd.DataFrame({"a": [1, 2]}), pd.DataFrame({"b": ["x", "y"]})], axis=1))),
+        case("concat_promotion", "pd.concat int+float promotes", ser_frame(pd.concat(
+            [pd.DataFrame({"v": [1, 2]}), pd.DataFrame({"v": [2.5]})], ignore_index=True))),
         case("join_index", "left.join(right)", ser_frame(join_l.join(join_r))),
     ]
     write("merge_join_concat.json", "pandas.merge_join_concat", cases)

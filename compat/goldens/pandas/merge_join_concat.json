@@ -218,6 +218,66 @@
    }
   },
   {
+   "name": "concat_join_inner",
+   "operation": "pd.concat join=inner",
+   "expected": {
+    "columns": [
+     "x"
+    ],
+    "rows": [
+     [
+      1
+     ],
+     [
+      2
+     ],
+     [
+      4
+     ]
+    ]
+   }
+  },
+  {
+   "name": "concat_axis1",
+   "operation": "pd.concat axis=1",
+   "expected": {
+    "columns": [
+     "a",
+     "b"
+    ],
+    "rows": [
+     [
+      1,
+      "x"
+     ],
+     [
+      2,
+      "y"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "concat_promotion",
+   "operation": "pd.concat int+float promotes",
+   "expected": {
+    "columns": [
+     "v"
+    ],
+    "rows": [
+     [
+      1.0
+     ],
+     [
+      2.0
+     ],
+     [
+      2.5
+     ]
+    ]
+   }
+  },
+  {
    "name": "join_index",
    "operation": "left.join(right)",
    "expected": {

@@ -351,6 +351,38 @@ var pandasCases = map[string]caseFn{
 		}
 		return pd.Concat([]*pd.DataFrame{a, c}, pd.IgnoreIndex(true))
 	},
+	"concat_join_inner": func(t *testing.T) (any, error) {
+		a, _ := concatFixtures(t)
+		c, err := pd.DataFrameFromRecords([]map[string]any{
+			{"x": 4, "z": true},
+		}, pd.WithColumnOrder("x", "z"))
+		if err != nil {
+			return nil, err
+		}
+		return pd.Concat([]*pd.DataFrame{a, c}, pd.Join("inner"), pd.IgnoreIndex(true))
+	},
+	"concat_axis1": func(t *testing.T) (any, error) {
+		a, err := pd.DataFrameFromMap(map[string][]any{"a": {1, 2}})
+		if err != nil {
+			return nil, err
+		}
+		b, err := pd.DataFrameFromMap(map[string][]any{"b": {"x", "y"}})
+		if err != nil {
+			return nil, err
+		}
+		return pd.Concat([]*pd.DataFrame{a, b}, pd.ConcatAxis(1))
+	},
+	"concat_promotion": func(t *testing.T) (any, error) {
+		a, err := pd.DataFrameFromMap(map[string][]any{"v": {1, 2}})
+		if err != nil {
+			return nil, err
+		}
+		b, err := pd.DataFrameFromMap(map[string][]any{"v": {2.5}})
+		if err != nil {
+			return nil, err
+		}
+		return pd.Concat([]*pd.DataFrame{a, b}, pd.IgnoreIndex(true))
+	},
 	"join_index": func(t *testing.T) (any, error) {
 		l, err := pd.DataFrameFromMap(map[string][]any{"v": {1, 2}})
 		if err != nil {

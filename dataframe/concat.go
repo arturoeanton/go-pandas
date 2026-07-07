@@ -2,8 +2,11 @@ package dataframe
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/arturoeanton/go-pandas/errs"
+	"github.com/arturoeanton/go-pandas/index"
+	"github.com/arturoeanton/go-pandas/internal/column"
 	"github.com/arturoeanton/go-pandas/series"
 )
 
@@ -31,8 +34,11 @@ func ConcatIgnoreIndex(v bool) ConcatOption {
 	return func(o *ConcatOptions) { o.IgnoreIndex = v }
 }
 
-// Concat concatenates frames vertically (axis 0) or horizontally (axis 1).
-// Vertical concat takes the column union and fills missing cells with NA.
+// Concat concatenates frames vertically (axis 0) or horizontally
+// (axis 1). Since v0.6.1 vertical concat is typed: same-dtype columns
+// append into one typed buffer, compatible numeric dtypes promote once,
+// columns missing from a frame become NA gaps, and only genuinely
+// incompatible columns fall back to object storage.
 func Concat(frames []*DataFrame, opts ...ConcatOption) (*DataFrame, error) {
 	o := ConcatOptions{Join: "outer"}
 	for _, f := range opts {
@@ -50,11 +56,15 @@ func Concat(frames []*DataFrame, opts ...ConcatOption) (*DataFrame, error) {
 	if o.Axis == 1 {
 		return concatColumns(nonEmpty)
 	}
+	return concatRows(nonEmpty, o)
+}
 
+// concatRows implements the typed axis=0 concat.
+func concatRows(frames []*DataFrame, o ConcatOptions) (*DataFrame, error) {
 	// Column order: union in first-seen order, or intersection for inner.
 	var names []string
 	seen := map[string]bool{}
-	for _, f := range nonEmpty {
+	for _, f := range frames {
 		for _, name := range f.Columns() {
 			if !seen[name] {
 				seen[name] = true
@@ -66,7 +76,7 @@ func Concat(frames []*DataFrame, opts ...ConcatOption) (*DataFrame, error) {
 		var kept []string
 		for _, name := range names {
 			inAll := true
-			for _, f := range nonEmpty {
+			for _, f := range frames {
 				if _, ok := f.byName[name]; !ok {
 					inAll = false
 					break
@@ -80,54 +90,87 @@ func Concat(frames []*DataFrame, opts ...ConcatOption) (*DataFrame, error) {
 	}
 
 	total := 0
-	for _, f := range nonEmpty {
+	for _, f := range frames {
 		total += f.Len()
 	}
-	colData := make([][]any, len(names))
-	for j := range colData {
-		colData[j] = make([]any, 0, total)
+	var idx index.Index
+	if o.IgnoreIndex {
+		idx = index.NewRangeIndex(total)
+	} else {
+		idx = concatIndexes(frames, total)
 	}
-	var labels []any
-	for _, f := range nonEmpty {
-		values := make(map[string][]any, len(f.columns))
-		for _, c := range f.columns {
-			values[c.Name()] = c.Values()
-		}
-		for i := 0; i < f.Len(); i++ {
-			labels = append(labels, f.index.At(i))
-		}
-		for j, name := range names {
-			if vs, ok := values[name]; ok {
-				colData[j] = append(colData[j], vs...)
+
+	cols := make([]*series.Series, len(names))
+	parts := make([]column.ConcatPart, len(frames))
+	for j, name := range names {
+		for i, f := range frames {
+			if k, ok := f.byName[name]; ok {
+				parts[i] = column.ConcatPart{Col: f.columns[k].Storage(), Len: f.Len()}
 			} else {
-				for i := 0; i < f.Len(); i++ {
-					colData[j] = append(colData[j], nil)
-				}
+				parts[i] = column.ConcatPart{Col: nil, Len: f.Len()}
 			}
 		}
+		cols[j] = series.Assemble(name, column.ConcatParts(parts), idx)
 	}
-	cols := make([]*series.Series, len(names))
-	for j, name := range names {
-		cols[j] = series.NewSeries(name, colData[j])
-	}
-	out, err := newFrame(cols, nil)
-	if err != nil {
-		return nil, err
-	}
-	if !o.IgnoreIndex {
-		idx := indexFromLabels(labels)
-		adjusted := make([]*series.Series, len(out.columns))
-		for i, c := range out.columns {
-			adjusted[i] = c.WithIndexed(idx)
-		}
-		return newFrame(adjusted, idx)
-	}
-	return out, nil
+	return newFrame(cols, idx)
 }
 
-// concatColumns concatenates frames side by side; row counts must match.
+// concatIndexes stacks the row labels, staying typed when every frame
+// carries the same label family (integer, string or datetime); mixed
+// families keep the boxed labels as-is.
+func concatIndexes(frames []*DataFrame, total int) index.Index {
+	allInt, allString, allTime := true, true, true
+	for _, f := range frames {
+		switch f.index.(type) {
+		case *index.RangeIndex, *index.Int64Index:
+			allString, allTime = false, false
+		case *index.StringIndex:
+			allInt, allTime = false, false
+		case *index.DatetimeIndex:
+			allInt, allString = false, false
+		default:
+			allInt, allString, allTime = false, false, false
+		}
+	}
+	switch {
+	case allInt:
+		labels := make([]int64, 0, total)
+		for _, f := range frames {
+			switch ix := f.index.(type) {
+			case *index.RangeIndex:
+				for i := 0; i < ix.Len(); i++ {
+					labels = append(labels, int64(ix.Start+i*ix.Step))
+				}
+			case *index.Int64Index:
+				labels = append(labels, ix.Int64s()...)
+			}
+		}
+		return index.NewInt64Index(labels)
+	case allString:
+		labels := make([]string, 0, total)
+		for _, f := range frames {
+			labels = append(labels, f.index.(*index.StringIndex).Strings()...)
+		}
+		return index.NewStringIndex(labels)
+	case allTime:
+		labels := make([]time.Time, 0, total)
+		for _, f := range frames {
+			labels = append(labels, f.index.(*index.DatetimeIndex).Times()...)
+		}
+		return index.NewDatetimeIndex(labels)
+	}
+	labels := make([]any, 0, total)
+	for _, f := range frames {
+		labels = append(labels, f.index.Values()...)
+	}
+	return indexFromLabels(labels)
+}
+
+// concatColumns concatenates frames side by side; row counts must match
+// (no index alignment — a documented limitation).
 func concatColumns(frames []*DataFrame) (*DataFrame, error) {
 	n := frames[0].Len()
+	idx := frames[0].index.Clone()
 	var cols []*series.Series
 	seen := map[string]int{}
 	for _, f := range frames {
@@ -142,8 +185,8 @@ func concatColumns(frames []*DataFrame) (*DataFrame, error) {
 			} else {
 				seen[name] = 0
 			}
-			cols = append(cols, c.Copy().Rename(name))
+			cols = append(cols, series.Assemble(name, c.Storage().Copy(), idx))
 		}
 	}
-	return newFrame(cols, frames[0].index.Clone())
+	return newFrame(cols, idx)
 }

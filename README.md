@@ -13,7 +13,7 @@
 go-pandas is a compatibility-oriented data toolkit: pandas-style
 `DataFrame`/`Series` and NumPy-style `NDArray` with the same concepts,
 names and behavior — verified against **golden outputs generated from
-real pandas and NumPy** (240 test cases, pandas 2.3 / NumPy 2.0).
+real pandas and NumPy** (243 test cases, pandas 2.3 / NumPy 2.0).
 
 Since v0.6, `Merge`/`Join` run on a **typed hash-join engine** (a 100K
 x 10K int-key merge takes ~2 ms with ~180 allocations, ~8x faster than
@@ -33,7 +33,7 @@ object storage — `StorageDType()` / `IsObjectBacked()` tell you which.
 go-pandas v0.4.x is **experimental**. The API is not yet v1 stable.
 Compatibility is conceptual and behavioral where tested, not Python
 syntax compatibility. Current coverage, computed from the matrices with
-`go run ./cmd/compat-report`: pandas 93% of 99 tracked rows, NumPy 89%
+`go run ./cmd/compat-report`: pandas 93% of 100 tracked rows, NumPy 89%
 of 53 tracked rows — including partial rows
 ([full report](compat/coverage_report.md), [what's intentionally
 different](compat/known_differences.md)).
@@ -159,6 +159,7 @@ merged, _ := pd.Merge(left, right, pd.MergeOptions{
     Validate: "one_to_one", Indicator: true,
 })
 stacked, _ := pd.Concat(frames, pd.IgnoreIndex(true), pd.Join("inner"))
+one, _ := pd.ConcatSeries(s1, s2) // typed append + promotion (v0.6.1)
 ```
 
 ## Missing values

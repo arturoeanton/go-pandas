@@ -2,7 +2,13 @@ package pandas
 
 import (
 	"github.com/arturoeanton/go-pandas/ndarray"
+	"github.com/arturoeanton/go-pandas/series"
 )
+
+// ConcatSeries stacks series vertically with typed storage (v0.6.1):
+// same dtypes append typed, compatible numerics promote, incompatible
+// mixes fall back to object.
+func ConcatSeries(ss ...*Series) (*Series, error) { return series.Concat(ss...) }
 
 // v0.3 typed-storage surface.
 

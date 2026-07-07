@@ -1,6 +1,13 @@
 # Roadmap
 
-## v0.6 (this release) — typed merge / join engine
+## v0.6.1 (this release) — typed concat + stability audit
+
+- Vertical concat appends typed column segments with one-shot numeric
+  promotion and NA gaps for missing columns; typed index concatenation;
+  pd.ConcatSeries. Every major materialization path (filter, gather,
+  groupby, merge, concat) is now typed end to end.
+
+## v0.6 — typed merge / join engine
 
 - Shared-id-space typed join keys, CSR build+probe with exact-size pair
   vectors, deterministic duplicate-key expansion, typed gather

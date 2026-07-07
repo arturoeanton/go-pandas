@@ -122,7 +122,8 @@ Differences in behavior are documented in [known_differences.md](known_differenc
 | multi-key merge | MergeOptions.On: []string{...} | done | typed composite ids |
 | suffixes / validate / indicator | MergeOptions fields | done | |
 | df.join(other) | df.Join(other, JoinOptions) | partial | typed index join (Range/Int64/String/Datetime); left/inner/outer |
-| pd.concat axis=0/1 | pd.Concat(frames, ConcatAxis/pd.Join/pd.IgnoreIndex) | partial | outer/inner column handling |
+| pd.concat axis=0/1 | pd.Concat(frames, ConcatAxis/pd.Join/pd.IgnoreIndex) | partial | typed engine (v0.6.1): typed append, numeric promotion, NA gaps; axis=1 positional only (no index alignment) |
+| pd.concat of Series | pd.ConcatSeries(...) | done | typed append + promotion (v0.6.1) |
 
 ## Reshape and window
 

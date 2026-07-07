@@ -38,6 +38,16 @@ BenchmarkPositionsFromMask100K           ~0.10 ms/op, 1 alloc
 BenchmarkDropNA100K                      ~0.91 ms/op, 44 allocs
 ```
 
+Typed concat engine (v0.6.1, 100K+100K rows):
+
+```text
+BenchmarkConcatAxis0SameSchema100K          ~1.24 ms/op, 17 allocs
+BenchmarkConcatAxis0OuterMissingColumns100K ~0.65 ms/op, 23 allocs
+BenchmarkConcatAxis0NumericPromotion100K    ~0.24 ms/op, 12 allocs
+BenchmarkConcatAxis1Aligned100K             ~0.92 ms/op, 24 allocs
+BenchmarkConcatObjectFallback100K           ~4.7 ms/op, 22 allocs
+```
+
 Typed merge / join engine (the v0.6 win, 100K left x 10K right):
 
 ```text
@@ -76,6 +86,9 @@ BenchmarkDataFrameGroupByObject   ~1.8 ms/op
 
 ## Current design
 
+- **Typed concat** (v0.6.1): vertical concat appends typed buffers with
+  one-shot numeric promotion and NA gaps for missing columns —
+  allocations scale with columns, not rows.
 - **Typed merge/join** (v0.6): shared-id-space typed key maps, CSR
   build+probe with exact-size pair vectors, typed gather
   materialization and typed key coalescing.
