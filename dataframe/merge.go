@@ -2,10 +2,11 @@ package dataframe
 
 import (
 	"fmt"
-	"strings"
 
-	"github.com/arturoeanton/go-pandas/dtype"
 	"github.com/arturoeanton/go-pandas/errs"
+	"github.com/arturoeanton/go-pandas/index"
+	"github.com/arturoeanton/go-pandas/internal/column"
+	join "github.com/arturoeanton/go-pandas/internal/join"
 	"github.com/arturoeanton/go-pandas/series"
 )
 
@@ -31,23 +32,36 @@ func Merge(left, right *DataFrame, opts MergeOptions) (*DataFrame, error) {
 	return left.Merge(right, opts)
 }
 
-// Merge joins two frames on key columns using a hash join.
+// Merge joins two frames on key columns through the typed hash-join
+// engine (v0.6): keys map into a shared typed id space, pair vectors are
+// built once, and output columns materialize via typed gather. NA keys
+// never match (see known differences).
 func (df *DataFrame) Merge(right *DataFrame, opts MergeOptions) (*DataFrame, error) {
 	how := opts.How
 	if how == "" {
 		how = "inner"
-	}
-	switch how {
-	case "inner", "left", "right", "outer", "cross":
-	default:
-		return nil, fmt.Errorf("%w: how=%q", errs.ErrInvalidJoin, how)
 	}
 	if opts.Suffixes == [2]string{} {
 		opts.Suffixes = [2]string{"_x", "_y"}
 	}
 
 	if how == "cross" {
-		return crossJoin(df, right, opts)
+		plan := join.Cross(df.Len(), right.Len())
+		return materializeCross(df, right, plan, opts)
+	}
+
+	var jhow join.How
+	switch how {
+	case "inner":
+		jhow = join.Inner
+	case "left":
+		jhow = join.Left
+	case "right":
+		jhow = join.Right
+	case "outer":
+		jhow = join.Outer
+	default:
+		return nil, fmt.Errorf("%w: how=%q", errs.ErrInvalidJoin, how)
 	}
 
 	leftKeys, rightKeys := opts.LeftOn, opts.RightOn
@@ -57,154 +71,34 @@ func (df *DataFrame) Merge(right *DataFrame, opts MergeOptions) (*DataFrame, err
 	if len(leftKeys) == 0 || len(leftKeys) != len(rightKeys) {
 		return nil, fmt.Errorf("%w: merge requires matching On or LeftOn/RightOn keys", errs.ErrInvalidJoin)
 	}
-	leftKeyCols := make([][]any, len(leftKeys))
-	for i, k := range leftKeys {
-		c, err := df.Col(k)
+	leftCols := make([]column.Column, len(leftKeys))
+	rightCols := make([]column.Column, len(rightKeys))
+	for i := range leftKeys {
+		lc, err := df.Col(leftKeys[i])
 		if err != nil {
 			return nil, err
 		}
-		leftKeyCols[i] = c.Values()
-	}
-	rightKeyCols := make([][]any, len(rightKeys))
-	for i, k := range rightKeys {
-		c, err := right.Col(k)
+		rc, err := right.Col(rightKeys[i])
 		if err != nil {
 			return nil, err
 		}
-		rightKeyCols[i] = c.Values()
+		leftCols[i] = lc.Storage()
+		rightCols[i] = rc.Storage()
 	}
 
-	makeKey := func(cols [][]any, row int) (string, bool) {
-		var sb strings.Builder
-		for _, col := range cols {
-			v := col[row]
-			if dtype.IsNA(v) {
-				return "", false
-			}
-			// Normalize numerics so int 1 matches float 1.0 across frames.
-			if f, ok := dtype.AsFloat(v); ok {
-				sb.WriteString(fmt.Sprintf("%v\x00", f))
-			} else {
-				sb.WriteString(fmt.Sprintf("%v\x00", v))
-			}
-		}
-		return sb.String(), true
-	}
-
-	// Hash the right side: key -> row positions.
-	rightRows := make(map[string][]int)
-	for i := 0; i < right.Len(); i++ {
-		if key, ok := makeKey(rightKeyCols, i); ok {
-			rightRows[key] = append(rightRows[key], i)
-		}
-	}
-
-	if err := validateMerge(opts.Validate, df, right, leftKeyCols, rightKeyCols, makeKey); err != nil {
+	lids, rids, count := join.PairIDs(leftCols, rightCols)
+	if err := join.Validate(opts.Validate, lids, rids, count); err != nil {
 		return nil, err
 	}
-
-	// Build the matched row position pairs (-1 = no match on that side).
-	var leftPos, rightPos []int
-	var indicator []string
-	matchedRight := make([]bool, right.Len())
-	for i := 0; i < df.Len(); i++ {
-		key, ok := makeKey(leftKeyCols, i)
-		var matches []int
-		if ok {
-			matches = rightRows[key]
-		}
-		if len(matches) == 0 {
-			if how == "left" || how == "outer" {
-				leftPos = append(leftPos, i)
-				rightPos = append(rightPos, -1)
-				indicator = append(indicator, "left_only")
-			}
-			continue
-		}
-		for _, j := range matches {
-			matchedRight[j] = true
-			leftPos = append(leftPos, i)
-			rightPos = append(rightPos, j)
-			indicator = append(indicator, "both")
-		}
-	}
-	if how == "right" || how == "outer" {
-		for j := 0; j < right.Len(); j++ {
-			if !matchedRight[j] {
-				leftPos = append(leftPos, -1)
-				rightPos = append(rightPos, j)
-				indicator = append(indicator, "right_only")
-			}
-		}
-	}
-	if how == "right" {
-		// Keep only matched pairs and right-only rows, ordered by right row.
-		var lp, rp []int
-		var ind []string
-		for j := 0; j < right.Len(); j++ {
-			found := false
-			for k, r := range rightPos {
-				if r == j {
-					lp = append(lp, leftPos[k])
-					rp = append(rp, j)
-					ind = append(ind, indicator[k])
-					found = true
-				}
-			}
-			if !found {
-				lp = append(lp, -1)
-				rp = append(rp, j)
-				ind = append(ind, "right_only")
-			}
-		}
-		leftPos, rightPos, indicator = lp, rp, ind
-	}
-
-	return assembleMerge(df, right, leftKeys, rightKeys, leftPos, rightPos, indicator, opts)
+	plan := join.Build(jhow, lids, rids, count)
+	return materializeMerge(df, right, leftKeys, rightKeys, plan, opts)
 }
 
-// validateMerge enforces the Validate cardinality constraint.
-func validateMerge(validate string, left, right *DataFrame, leftKeyCols, rightKeyCols [][]any, makeKey func([][]any, int) (string, bool)) error {
-	if validate == "" || validate == "many_to_many" {
-		return nil
-	}
-	uniqueSide := func(frame *DataFrame, cols [][]any) bool {
-		seen := make(map[string]bool)
-		for i := 0; i < frame.Len(); i++ {
-			key, ok := makeKey(cols, i)
-			if !ok {
-				continue
-			}
-			if seen[key] {
-				return false
-			}
-			seen[key] = true
-		}
-		return true
-	}
-	switch validate {
-	case "one_to_one":
-		if !uniqueSide(left, leftKeyCols) || !uniqueSide(right, rightKeyCols) {
-			return fmt.Errorf("%w: merge keys are not one_to_one", errs.ErrInvalidJoin)
-		}
-	case "one_to_many":
-		if !uniqueSide(left, leftKeyCols) {
-			return fmt.Errorf("%w: left merge keys are not unique for one_to_many", errs.ErrInvalidJoin)
-		}
-	case "many_to_one":
-		if !uniqueSide(right, rightKeyCols) {
-			return fmt.Errorf("%w: right merge keys are not unique for many_to_one", errs.ErrInvalidJoin)
-		}
-	default:
-		return fmt.Errorf("%w: validate=%q", errs.ErrInvalidJoin, validate)
-	}
-	return nil
-}
-
-// assembleMerge builds the output frame from the matched position pairs:
-// key columns (coalesced), left non-keys, right non-keys, with suffixes on
-// name collisions.
-func assembleMerge(left, right *DataFrame, leftKeys, rightKeys []string, leftPos, rightPos []int, indicator []string, opts MergeOptions) (*DataFrame, error) {
+// materializeMerge assembles the output frame from the pair vectors:
+// key columns (typed coalesce of both sides when key names match), left
+// non-keys, right non-keys — with suffixes on collisions — plus the
+// optional indicator, all through typed gathers sharing one index.
+func materializeMerge(left, right *DataFrame, leftKeys, rightKeys []string, plan *join.Plan, opts MergeOptions) (*DataFrame, error) {
 	isLeftKey := make(map[string]bool, len(leftKeys))
 	for _, k := range leftKeys {
 		isLeftKey[k] = true
@@ -215,99 +109,110 @@ func assembleMerge(left, right *DataFrame, leftKeys, rightKeys []string, leftPos
 	}
 	sameKeyNames := len(opts.On) > 0
 
+	n := len(plan.LeftRows)
+	idx := index.NewRangeIndex(n)
 	var cols []*series.Series
 
-	// Key columns: values from the left, filled from the right when the
-	// left side has no match (outer/right joins).
+	// Key columns: left values, filled from the right when the left side
+	// has no matching row (outer/right joins with shared key names).
 	for ki, k := range leftKeys {
-		lc, _ := left.Col(k)
-		values := make([]any, len(leftPos))
-		for i := range leftPos {
-			if leftPos[i] >= 0 {
-				v, _ := lc.At(leftPos[i])
-				values[i] = v
-			} else if sameKeyNames {
-				rc, _ := right.Col(rightKeys[ki])
-				v, _ := rc.At(rightPos[i])
-				values[i] = v
+		lc := left.MustCol(k).Storage()
+		if sameKeyNames {
+			rc := right.MustCol(rightKeys[ki]).Storage()
+			out, ok := column.GatherCoalesce(lc, rc, plan.LeftRows, plan.RightRows)
+			if !ok {
+				out = column.GatherCoalesceBoxed(lc, rc, plan.LeftRows, plan.RightRows)
 			}
+			cols = append(cols, series.Assemble(k, out, idx))
+			continue
 		}
-		cols = append(cols, series.NewSeries(k, values))
+		out, err := lc.Take(plan.LeftRows)
+		if err != nil {
+			return nil, err
+		}
+		cols = append(cols, series.Assemble(k, out, idx))
 	}
 
 	dupName := func(name string) bool {
-		_, inLeft := left.byName[name]
-		_, inRight := right.byName[name]
-		if isLeftKey[name] && sameKeyNames {
+		if sameKeyNames && isLeftKey[name] {
 			return false
 		}
+		_, inLeft := left.byName[name]
+		_, inRight := right.byName[name]
 		return inLeft && inRight
 	}
 
-	takeCol := func(c *series.Series, pos []int, suffix string) *series.Series {
-		name := c.Name()
-		if dupName(name) {
-			name += suffix
+	appendSide := func(src *DataFrame, rows []int, suffix string, skip map[string]bool) error {
+		for _, c := range src.columns {
+			if skip[c.Name()] {
+				continue
+			}
+			name := c.Name()
+			if dupName(name) {
+				name += suffix
+			}
+			out, err := c.Storage().Take(rows)
+			if err != nil {
+				return err
+			}
+			cols = append(cols, series.Assemble(name, out, idx))
 		}
-		out, _ := c.Take(pos)
-		return out.Rename(name)
+		return nil
+	}
+	if err := appendSide(left, plan.LeftRows, opts.Suffixes[0], isLeftKey); err != nil {
+		return nil, err
+	}
+	if err := appendSide(right, plan.RightRows, opts.Suffixes[1], isRightKey); err != nil {
+		return nil, err
 	}
 
-	for _, c := range left.columns {
-		if sameKeyNames && isLeftKey[c.Name()] {
-			continue
-		}
-		if !sameKeyNames && isLeftKey[c.Name()] {
-			continue
-		}
-		cols = append(cols, takeCol(c, leftPos, opts.Suffixes[0]))
-	}
-	for _, c := range right.columns {
-		if isRightKey[c.Name()] {
-			continue
-		}
-		cols = append(cols, takeCol(c, rightPos, opts.Suffixes[1]))
-	}
 	if opts.Indicator {
-		values := make([]any, len(indicator))
-		for i, v := range indicator {
-			values[i] = v
+		values := make([]string, n)
+		for i, m := range plan.Match {
+			switch m {
+			case join.MatchLeftOnly:
+				values[i] = "left_only"
+			case join.MatchRightOnly:
+				values[i] = "right_only"
+			default:
+				values[i] = "both"
+			}
 		}
-		cols = append(cols, series.NewSeries("_merge", values))
+		cols = append(cols, series.Assemble("_merge", column.NewString(values, nil), idx))
 	}
-	return newFrame(cols, nil)
+	return newFrame(cols, idx)
 }
 
-// crossJoin returns the cartesian product of both frames.
-func crossJoin(left, right *DataFrame, opts MergeOptions) (*DataFrame, error) {
-	var leftPos, rightPos []int
-	for i := 0; i < left.Len(); i++ {
-		for j := 0; j < right.Len(); j++ {
-			leftPos = append(leftPos, i)
-			rightPos = append(rightPos, j)
-		}
-	}
-	var cols []*series.Series
+// materializeCross assembles the cartesian product with suffixes on every
+// duplicated column name.
+func materializeCross(left, right *DataFrame, plan *join.Plan, opts MergeOptions) (*DataFrame, error) {
+	n := len(plan.LeftRows)
+	idx := index.NewRangeIndex(n)
 	dup := func(name string) bool {
 		_, inLeft := left.byName[name]
 		_, inRight := right.byName[name]
 		return inLeft && inRight
 	}
-	for _, c := range left.columns {
-		name := c.Name()
-		if dup(name) {
-			name += opts.Suffixes[0]
+	var cols []*series.Series
+	appendSide := func(src *DataFrame, rows []int, suffix string) error {
+		for _, c := range src.columns {
+			name := c.Name()
+			if dup(name) {
+				name += suffix
+			}
+			out, err := c.Storage().Take(rows)
+			if err != nil {
+				return err
+			}
+			cols = append(cols, series.Assemble(name, out, idx))
 		}
-		out, _ := c.Take(leftPos)
-		cols = append(cols, out.Rename(name))
+		return nil
 	}
-	for _, c := range right.columns {
-		name := c.Name()
-		if dup(name) {
-			name += opts.Suffixes[1]
-		}
-		out, _ := c.Take(rightPos)
-		cols = append(cols, out.Rename(name))
+	if err := appendSide(left, plan.LeftRows, opts.Suffixes[0]); err != nil {
+		return nil, err
 	}
-	return newFrame(cols, nil)
+	if err := appendSide(right, plan.RightRows, opts.Suffixes[1]); err != nil {
+		return nil, err
+	}
+	return newFrame(cols, idx)
 }

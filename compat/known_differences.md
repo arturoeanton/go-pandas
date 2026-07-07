@@ -94,11 +94,21 @@ falls back to a boxed index with missing labels.
 
 ## Merge
 
+- **NA merge keys never match** — not even each other. pandas pairs NaN
+  join keys together (`NaN == NaN` in merge); go-pandas treats a masked
+  key as unknown, so NA-key rows only appear as left_only/right_only in
+  left/right/outer joins. Unit tests lock this behavior.
 - With `LeftOn`/`RightOn`, pandas keeps both key columns; go-pandas keeps
   only the left key column (the values are equal on matches).
 - Outer merges append left-only rows in left order and right-only rows
   after them; pandas sorts outer join keys. For sorted inputs the results
   coincide (the goldens verify this).
+- Numeric key widths match across frames (int 1 == 1.0); time keys
+  compare by Go time.Time equality (wall clock + location). Duplicate
+  keys expand deterministically: probe order, then build-side row order.
+- Join by MultiIndex is not supported (placeholder index).
+- Since v0.6 the engine is typed (docs/merge_engine.md); object-backed
+  keys keep the historical `%v` matching.
 
 ## GroupBy / aggregation naming
 

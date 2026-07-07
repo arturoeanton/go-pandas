@@ -276,6 +276,56 @@ var pandasCases = map[string]caseFn{
 			RightOn: []string{"id"},
 		})
 	},
+	"merge_dup_keys": func(t *testing.T) (any, error) {
+		l, _ := pd.DataFrameFromRecords([]map[string]any{
+			{"id": 1, "l": "a"}, {"id": 1, "l": "b"},
+		}, pd.WithColumnOrder("id", "l"))
+		r, _ := pd.DataFrameFromRecords([]map[string]any{
+			{"id": 1, "r": "x"}, {"id": 1, "r": "y"}, {"id": 1, "r": "z"},
+		}, pd.WithColumnOrder("id", "r"))
+		return l.Merge(r, pd.MergeOptions{On: []string{"id"}, How: "inner"})
+	},
+	"merge_string_key_left": func(t *testing.T) (any, error) {
+		l, _ := pd.DataFrameFromRecords([]map[string]any{
+			{"k": "a", "l": 1}, {"k": "b", "l": 2},
+		}, pd.WithColumnOrder("k", "l"))
+		r, _ := pd.DataFrameFromRecords([]map[string]any{
+			{"k": "b", "r": 10}, {"k": "c", "r": 20},
+		}, pd.WithColumnOrder("k", "r"))
+		return l.Merge(r, pd.MergeOptions{On: []string{"k"}, How: "left"})
+	},
+	"merge_time_key_inner": func(t *testing.T) (any, error) {
+		d1, _ := pd.ParseDatetime("2024-01-01")
+		d2, _ := pd.ParseDatetime("2024-02-01")
+		d3, _ := pd.ParseDatetime("2024-03-01")
+		l, _ := pd.DataFrameFromRecords([]map[string]any{
+			{"d": d1, "l": 1}, {"d": d2, "l": 2},
+		}, pd.WithColumnOrder("d", "l"))
+		r, _ := pd.DataFrameFromRecords([]map[string]any{
+			{"d": d2, "r": 10}, {"d": d3, "r": 20},
+		}, pd.WithColumnOrder("d", "r"))
+		return l.Merge(r, pd.MergeOptions{On: []string{"d"}, How: "inner"})
+	},
+	"merge_multi_key_inner": func(t *testing.T) (any, error) {
+		l, _ := pd.DataFrameFromRecords([]map[string]any{
+			{"country": "AR", "department": "eng", "l": 1},
+			{"country": "AR", "department": "sales", "l": 2},
+			{"country": "BR", "department": "eng", "l": 3},
+		}, pd.WithColumnOrder("country", "department", "l"))
+		r, _ := pd.DataFrameFromRecords([]map[string]any{
+			{"country": "AR", "department": "eng", "r": 10},
+			{"country": "BR", "department": "eng", "r": 30},
+		}, pd.WithColumnOrder("country", "department", "r"))
+		return l.Merge(r, pd.MergeOptions{On: []string{"country", "department"}, How: "inner"})
+	},
+	"merge_outer_indicator": func(t *testing.T) (any, error) {
+		l, r := mergeFrames(t)
+		return l.Merge(r, pd.MergeOptions{On: []string{"id"}, How: "outer", Indicator: true})
+	},
+	"merge_validate_one_to_one": func(t *testing.T) (any, error) {
+		l, r := mergeFrames(t)
+		return l.Merge(r, pd.MergeOptions{On: []string{"id"}, How: "inner", Validate: "one_to_one"})
+	},
 	"merge_cross": func(t *testing.T) (any, error) {
 		l, err := pd.DataFrameFromMap(map[string][]any{"x": {1, 2}})
 		if err != nil {

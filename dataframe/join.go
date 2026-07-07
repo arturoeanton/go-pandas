@@ -2,9 +2,12 @@ package dataframe
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/arturoeanton/go-pandas/errs"
 	"github.com/arturoeanton/go-pandas/index"
+	"github.com/arturoeanton/go-pandas/internal/column"
+	join "github.com/arturoeanton/go-pandas/internal/join"
 	"github.com/arturoeanton/go-pandas/series"
 )
 
@@ -20,105 +23,113 @@ type JoinOptions struct {
 	RSuffix string
 }
 
+// indexKeyColumn converts an index's labels into a typed key column for
+// the join engine (RangeIndex labels are generated arithmetically;
+// heterogeneous indexes fall back to boxed storage).
+func indexKeyColumn(ix index.Index) column.Column {
+	switch typed := ix.(type) {
+	case *index.RangeIndex:
+		values := make([]int64, typed.Len())
+		for i := range values {
+			values[i] = int64(typed.Start + i*typed.Step)
+		}
+		return column.NewInt64(values, nil)
+	case *index.Int64Index:
+		return column.NewInt64(append([]int64(nil), typed.Int64s()...), nil)
+	case *index.StringIndex:
+		return column.NewString(append([]string(nil), typed.Strings()...), nil)
+	case *index.DatetimeIndex:
+		return column.NewTime(append([]time.Time(nil), typed.Times()...), nil)
+	}
+	return column.FromAny(ix.Values(), 0)
+}
+
 // Join combines two frames on their indexes (or a left column against the
-// other frame's index).
+// other frame's index) through the typed join engine (v0.6).
 func (df *DataFrame) Join(other *DataFrame, opts JoinOptions) (*DataFrame, error) {
 	how := opts.How
 	if how == "" {
 		how = "left"
 	}
+	var jhow join.How
 	switch how {
-	case "left", "inner", "outer":
+	case "left":
+		jhow = join.Left
+	case "inner":
+		jhow = join.Inner
+	case "outer":
+		jhow = join.Outer
 	default:
 		return nil, fmt.Errorf("%w: join how=%q", errs.ErrInvalidJoin, how)
 	}
-	// Left labels: either a column's values or the index labels.
-	var leftLabels []any
+
+	// Left keys: a column's storage or the index labels.
+	var leftKey column.Column
 	if opts.On != "" {
 		c, err := df.Col(opts.On)
 		if err != nil {
 			return nil, err
 		}
-		leftLabels = c.Values()
+		leftKey = c.Storage()
 	} else {
-		leftLabels = df.index.Values()
+		leftKey = indexKeyColumn(df.index)
 	}
+	rightKey := indexKeyColumn(other.index)
 
-	var leftPos, rightPos []int
-	matchedRight := make([]bool, other.Len())
-	for i, label := range leftLabels {
-		positions := other.index.Positions(label)
-		if len(positions) == 0 {
-			if how == "left" || how == "outer" {
-				leftPos = append(leftPos, i)
-				rightPos = append(rightPos, -1)
-			}
-			continue
-		}
-		for _, j := range positions {
-			matchedRight[j] = true
-			leftPos = append(leftPos, i)
-			rightPos = append(rightPos, j)
-		}
-	}
-	if how == "outer" {
-		for j := range matchedRight {
-			if !matchedRight[j] {
-				leftPos = append(leftPos, -1)
-				rightPos = append(rightPos, j)
-			}
-		}
-	}
+	lids, rids, count := join.PairIDs(
+		[]column.Column{leftKey}, []column.Column{rightKey})
+	plan := join.Build(jhow, lids, rids, count)
 
 	dup := func(name string) bool {
 		_, inLeft := df.byName[name]
 		_, inRight := other.byName[name]
 		return inLeft && inRight
 	}
-	var cols []*series.Series
-	for _, c := range df.columns {
-		name := c.Name()
-		if dup(name) {
-			if opts.LSuffix == "" && opts.RSuffix == "" {
-				return nil, fmt.Errorf("%w: overlapping column %q requires LSuffix/RSuffix", errs.ErrInvalidJoin, name)
-			}
-			name += opts.LSuffix
-		}
-		out, err := c.Take(leftPos)
-		if err != nil {
-			return nil, err
-		}
-		cols = append(cols, out.Rename(name))
-	}
-	for _, c := range other.columns {
-		name := c.Name()
-		if dup(name) {
-			name += opts.RSuffix
-		}
-		out, err := c.Take(rightPos)
-		if err != nil {
-			return nil, err
-		}
-		cols = append(cols, out.Rename(name))
-	}
+	n := len(plan.LeftRows)
+
 	// Result index: left labels where available, else right labels.
-	idx := index.Take(df.index, leftPos)
-	if opts.On == "" {
-		labels := make([]any, len(leftPos))
-		for i := range leftPos {
-			if leftPos[i] >= 0 {
-				labels[i] = df.index.At(leftPos[i])
+	var idx index.Index
+	if opts.On != "" {
+		idx = index.Take(df.index, plan.LeftRows)
+	} else if jhow == join.Outer {
+		labels := make([]any, n)
+		for i := range plan.LeftRows {
+			if plan.LeftRows[i] >= 0 {
+				labels[i] = df.index.At(plan.LeftRows[i])
 			} else {
-				labels[i] = other.index.At(rightPos[i])
+				labels[i] = other.index.At(plan.RightRows[i])
 			}
 		}
 		idx = indexFromLabels(labels)
+	} else {
+		idx = index.Take(df.index, plan.LeftRows)
 	}
-	adjusted := make([]*series.Series, len(cols))
-	for i, c := range cols {
-		adjusted[i] = c.WithIndexed(idx)
+
+	var cols []*series.Series
+	appendSide := func(src *DataFrame, rows []int, suffix string, left bool) error {
+		for _, c := range src.columns {
+			name := c.Name()
+			if dup(name) {
+				if opts.LSuffix == "" && opts.RSuffix == "" {
+					return fmt.Errorf("%w: overlapping column %q requires LSuffix/RSuffix", errs.ErrInvalidJoin, name)
+				}
+				name += suffix
+			}
+			out, err := c.Storage().Take(rows)
+			if err != nil {
+				return err
+			}
+			cols = append(cols, series.Assemble(name, out, idx))
+		}
+		return nil
 	}
-	return newFrame(adjusted, idx)
+	if err := appendSide(df, plan.LeftRows, opts.LSuffix, true); err != nil {
+		return nil, err
+	}
+	if err := appendSide(other, plan.RightRows, opts.RSuffix, false); err != nil {
+		return nil, err
+	}
+	return newFrame(cols, idx)
 }
 
 // indexFromLabels rebuilds an index from raw labels via a string index

@@ -428,9 +428,41 @@ def expressions_suite():
     write("expressions.json", "pandas.expressions", cases)
 
 
+def merge_extra_suite():
+    left, right = merge_frames()
+    dupl = pd.DataFrame([{"id": 1, "l": "a"}, {"id": 1, "l": "b"}], columns=["id", "l"])
+    dupr = pd.DataFrame([{"id": 1, "r": "x"}, {"id": 1, "r": "y"}, {"id": 1, "r": "z"}], columns=["id", "r"])
+    sl = pd.DataFrame([{"k": "a", "l": 1}, {"k": "b", "l": 2}], columns=["k", "l"])
+    sr = pd.DataFrame([{"k": "b", "r": 10}, {"k": "c", "r": 20}], columns=["k", "r"])
+    tl = pd.DataFrame({"d": pd.to_datetime(["2024-01-01", "2024-02-01"]), "l": [1, 2]}, columns=["d", "l"])
+    tr = pd.DataFrame({"d": pd.to_datetime(["2024-02-01", "2024-03-01"]), "r": [10, 20]}, columns=["d", "r"])
+    ml = pd.DataFrame(
+        [{"country": "AR", "department": "eng", "l": 1},
+         {"country": "AR", "department": "sales", "l": 2},
+         {"country": "BR", "department": "eng", "l": 3}],
+        columns=["country", "department", "l"])
+    mr = pd.DataFrame(
+        [{"country": "AR", "department": "eng", "r": 10},
+         {"country": "BR", "department": "eng", "r": 30}],
+        columns=["country", "department", "r"])
+    outer_ind = left.merge(right, on="id", how="outer", indicator=True)
+    outer_ind["id"] = outer_ind["id"].astype("int64")
+    outer_ind["_merge"] = outer_ind["_merge"].astype(str)
+    cases = [
+        case("merge_dup_keys", "duplicate-key cartesian inner", ser_frame(dupl.merge(dupr, on="id", how="inner"))),
+        case("merge_string_key_left", "string key left join", ser_frame(sl.merge(sr, on="k", how="left"))),
+        case("merge_time_key_inner", "datetime key inner join", ser_frame(tl.merge(tr, on="d", how="inner"))),
+        case("merge_multi_key_inner", "two-key inner join", ser_frame(ml.merge(mr, on=["country", "department"], how="inner"))),
+        case("merge_outer_indicator", "outer with indicator", ser_frame(outer_ind)),
+        case("merge_validate_one_to_one", "validated one_to_one inner", ser_frame(left.merge(right, on="id", how="inner", validate="one_to_one"))),
+    ]
+    write("merge_extra.json", "pandas.merge_extra", cases)
+
+
 def main():
     dtypes_suite()
     expressions_suite()
+    merge_extra_suite()
     dataframe_core()
     series_core()
     groupby()

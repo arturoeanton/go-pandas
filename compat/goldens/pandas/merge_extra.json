@@ -1,0 +1,177 @@
+{
+ "suite": "pandas.merge_extra",
+ "pandas_version": "2.3.3",
+ "cases": [
+  {
+   "name": "merge_dup_keys",
+   "operation": "duplicate-key cartesian inner",
+   "expected": {
+    "columns": [
+     "id",
+     "l",
+     "r"
+    ],
+    "rows": [
+     [
+      1,
+      "a",
+      "x"
+     ],
+     [
+      1,
+      "a",
+      "y"
+     ],
+     [
+      1,
+      "a",
+      "z"
+     ],
+     [
+      1,
+      "b",
+      "x"
+     ],
+     [
+      1,
+      "b",
+      "y"
+     ],
+     [
+      1,
+      "b",
+      "z"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "merge_string_key_left",
+   "operation": "string key left join",
+   "expected": {
+    "columns": [
+     "k",
+     "l",
+     "r"
+    ],
+    "rows": [
+     [
+      "a",
+      1,
+      null
+     ],
+     [
+      "b",
+      2,
+      10.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "merge_time_key_inner",
+   "operation": "datetime key inner join",
+   "expected": {
+    "columns": [
+     "d",
+     "l",
+     "r"
+    ],
+    "rows": [
+     [
+      "2024-02-01",
+      2,
+      10
+     ]
+    ]
+   }
+  },
+  {
+   "name": "merge_multi_key_inner",
+   "operation": "two-key inner join",
+   "expected": {
+    "columns": [
+     "country",
+     "department",
+     "l",
+     "r"
+    ],
+    "rows": [
+     [
+      "AR",
+      "eng",
+      1,
+      10
+     ],
+     [
+      "BR",
+      "eng",
+      3,
+      30
+     ]
+    ]
+   }
+  },
+  {
+   "name": "merge_outer_indicator",
+   "operation": "outer with indicator",
+   "expected": {
+    "columns": [
+     "id",
+     "name",
+     "salary",
+     "_merge"
+    ],
+    "rows": [
+     [
+      1,
+      "Ana",
+      1000.0,
+      "both"
+     ],
+     [
+      2,
+      "Luis",
+      2000.0,
+      "both"
+     ],
+     [
+      3,
+      "Marta",
+      null,
+      "left_only"
+     ],
+     [
+      4,
+      null,
+      4000.0,
+      "right_only"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "merge_validate_one_to_one",
+   "operation": "validated one_to_one inner",
+   "expected": {
+    "columns": [
+     "id",
+     "name",
+     "salary"
+    ],
+    "rows": [
+     [
+      1,
+      "Ana",
+      1000.0
+     ],
+     [
+      2,
+      "Luis",
+      2000.0
+     ]
+    ]
+   }
+  }
+ ]
+}

@@ -1,6 +1,13 @@
 # Roadmap
 
-## v0.5 (this release) — typed GroupBy engine
+## v0.6 (this release) — typed merge / join engine
+
+- Shared-id-space typed join keys, CSR build+probe with exact-size pair
+  vectors, deterministic duplicate-key expansion, typed gather
+  materialization, typed index joins. 100K-row merges drop from ~700K to
+  ~180 allocations.
+
+## v0.5 — typed GroupBy engine
 
 - Group ids from typed key maps (string/bool/time/unified-numeric),
   pairwise [2]int composition for multi-key, segment reducers for every
@@ -48,7 +55,7 @@
 - IO: usecols/nrows/keep_default_na; JSON split/columns orientations.
 - Fuzz tests, benchmarks, compatibility scoring.
 
-## v0.5 — stronger pandas
+## Next: stronger pandas
 
 - MultiIndex beyond construction; groupby/set_index integration.
 - Categorical dtype (typed storage for categories).
@@ -57,14 +64,14 @@
 - pivot_table with multiple values/aggfuncs; stack/unstack.
 - df.eval; stronger query parser (arithmetic in queries).
 
-## v0.6 — performance backends
+## v0.7 — performance backends
 
 - Integer compute kernels (skip the float64 pass).
 - Arrow interchange; Parquet and DuckDB adapters; gonum linalg adapter
   (det/inv/solve/eig/SVD).
 - Optional SIMD kernels.
 
-## v0.7 — compatibility expansion
+## v0.8 — compatibility expansion
 
 - Excel and SQL IO.
 - ewm; expanding aggregation parity.

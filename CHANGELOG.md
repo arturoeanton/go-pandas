@@ -1,5 +1,52 @@
 # Changelog
 
+## v0.6.0 - Typed Merge / Join Engine
+
+### Added
+- `internal/join`: typed hash-join engine. Left and right key tuples map
+  into one shared id space through typed maps (string, time, unified
+  numeric where int 1 matches 1.0 across frames; `%v` fallback for
+  object/mixed keys); multi-key tuples compose pairwise via comparable
+  `[2]int` map keys with zero per-row allocations.
+- CSR build + ordered probe with pre-counted pair vectors
+  (`LeftRows`/`RightRows`/`Match`): duplicate keys expand to their full
+  cartesian deterministically, and the quadratic right-join reorder from
+  v0.1 is gone.
+- `column.GatherCoalesce`: typed same-dtype coalescing gather for merged
+  key columns (boxed fallback for mixed key dtypes).
+- Typed index joins: `df.Join` derives typed key columns from
+  RangeIndex (arithmetic), Int64Index, StringIndex and DatetimeIndex
+  backings and runs the same engine.
+- Cardinality validation over id vectors (no boxing); `_merge` indicator
+  as a typed string column.
+- 6 new merge goldens against pandas 2.3.3 (duplicate-key cartesian,
+  string and datetime keys, multi-key, outer+indicator, validated
+  one_to_one). Golden total: 240.
+
+### Improved
+- Merge output materializes through column-level typed gathers sharing
+  one RangeIndex — dtypes and NA masks survive; no boxed key columns, no
+  per-column index churn.
+- Cross joins materialize typed as well.
+
+### Performance (Apple M4, 100K left x 10K right, measured)
+- Inner int key: ~17 ms / ~700K allocs → **2.1 ms / 177 allocs**.
+- Left string key: 2.5 ms / 175; outer: 2.3 ms / 178; multi-key inner:
+  4.5 ms / 133; duplicate keys (1M pairs): 3.7 ms / 30; indicator outer:
+  2.6 ms / 182; join by RangeIndex (100K x 100K): 5.7 ms / 563; object
+  fallback: 10 ms / ~220K.
+
+### Compatibility
+- All pre-existing merge/join goldens and unit tests pass unchanged.
+- NA merge keys still never match — now explicitly documented as a
+  difference from pandas (which pairs NaN keys) and locked by tests.
+
+### Known limitations
+- Object-backed or mixed-kind key pairs use the boxed `%v` id builder.
+- Join by MultiIndex remains unsupported.
+- pandas sorts outer-join keys; go-pandas preserves probe order (results
+  coincide for sorted inputs, golden-verified).
+
 ## v0.5.0 - Typed GroupBy Engine
 
 ### Added

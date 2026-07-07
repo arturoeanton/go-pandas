@@ -117,10 +117,11 @@ Differences in behavior are documented in [known_differences.md](known_differenc
 
 | pandas API | go-pandas API | Status | Notes |
 |---|---|---|---|
-| pd.merge how=inner/left/right/outer/cross | pd.Merge / df.Merge | done | hash join |
+| pd.merge how=inner/left/right/outer/cross | pd.Merge / df.Merge | done | typed hash join (v0.6); duplicate keys expand; NA keys never match (documented) |
 | left_on/right_on | MergeOptions.LeftOn/RightOn | done | right key column dropped |
+| multi-key merge | MergeOptions.On: []string{...} | done | typed composite ids |
 | suffixes / validate / indicator | MergeOptions fields | done | |
-| df.join(other) | df.Join(other, JoinOptions) | partial | index join, left/inner/outer |
+| df.join(other) | df.Join(other, JoinOptions) | partial | typed index join (Range/Int64/String/Datetime); left/inner/outer |
 | pd.concat axis=0/1 | pd.Concat(frames, ConcatAxis/pd.Join/pd.IgnoreIndex) | partial | outer/inner column handling |
 
 ## Reshape and window

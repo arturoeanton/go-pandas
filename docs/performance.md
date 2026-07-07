@@ -38,6 +38,19 @@ BenchmarkPositionsFromMask100K           ~0.10 ms/op, 1 alloc
 BenchmarkDropNA100K                      ~0.91 ms/op, 44 allocs
 ```
 
+Typed merge / join engine (the v0.6 win, 100K left x 10K right):
+
+```text
+BenchmarkMergeInnerIntKey100K      ~2.1 ms/op, 177 allocs   (v0.5: ~17 ms / ~700K allocs)
+BenchmarkMergeLeftStringKey100K    ~2.5 ms/op, 175 allocs
+BenchmarkMergeOuterIntKey100K      ~2.3 ms/op, 178 allocs
+BenchmarkMergeMultiKey100K         ~4.5 ms/op, 133 allocs
+BenchmarkMergeDuplicateKeys100K    ~3.7 ms/op, 30 allocs    (1M output pairs)
+BenchmarkMergeIndicator100K        ~2.6 ms/op, 182 allocs
+BenchmarkJoinByRangeIndex100K      ~5.7 ms/op, 563 allocs   (100K x 100K)
+BenchmarkMergeObjectFallback100K   ~10 ms/op, ~220K allocs
+```
+
 Typed GroupBy engine (the v0.5 win, 100K rows):
 
 ```text
@@ -63,6 +76,9 @@ BenchmarkDataFrameGroupByObject   ~1.8 ms/op
 
 ## Current design
 
+- **Typed merge/join** (v0.6): shared-id-space typed key maps, CSR
+  build+probe with exact-size pair vectors, typed gather
+  materialization and typed key coalescing.
 - **Typed GroupBy** (v0.5): group ids from typed key maps, segment
   reducers over group ids, min/max/first/last as typed index-selector
   gathers — no sub-DataFrame per group.
