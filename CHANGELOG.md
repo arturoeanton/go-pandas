@@ -1,5 +1,39 @@
 # Changelog
 
+## v1.0.0 - First Stable Release
+
+### API Contract — FROZEN
+- Identical code to v1.0.0-rc.1; this tag freezes the contract. Every
+  group marked stable in docs/api_freeze.md keeps its names,
+  signatures, error sentinels and documented semantics for the whole
+  v1 major. The documented entries in compat/known_differences.md are
+  part of the contract: changing one is a breaking change even when it
+  increases pandas parity.
+- Policies (upgrade, patch, deprecation, post-v1 roadmap) in
+  docs/v1_plan.md; the per-release gate in docs/release_checklist.md.
+
+### What v1.0 is
+- pandas-style DataFrame/Series and NumPy-style NDArray with typed
+  storage end to end: columnar expressions, typed GroupBy (incl.
+  Transform/Filter/AsIndex), Merge/Join, Concat, categorical dtype
+  (int32 codes), real MultiIndex (levels+codes, level operations, XS),
+  to_datetime + DatetimeIndex + observed-bucket Resample,
+  Stack/Unstack, PivotTable with multiple values/aggfuncs, an
+  arithmetic-capable Query grammar, and the NumPy set operations —
+  verified by 301 golden cases generated from pandas 2.3.3 / NumPy
+  2.0.2, fuzz-hardened, race-clean, zero dependencies.
+
+### What v1.0 is not
+- No timezone dtype, no Parquet/Excel/SQL/Arrow (future adapter
+  modules), no ewm/eval, no MultiIndex columns, no resample
+  closed/label/origin options — tracked honestly as planned in the
+  matrices (pandas 94% of 136 rows, NumPy 91% of 54).
+
+### Validation for this tag
+- Full gate green (tidy, tests, race, vet, gofmt, 9 examples,
+  benchmarks, compat-report) plus a fresh 16-minute fuzz pass (8 key
+  targets x 120 s), all clean.
+
 ## v1.0.0-rc.1 - Final API Contract Decisions
 
 ### API Contract

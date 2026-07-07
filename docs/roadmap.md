@@ -1,6 +1,16 @@
 # Roadmap
 
-## v0.10 (this release) — reshape depth + prerelease candidate
+## v1.0.0 (this release) — first stable release
+
+- API frozen per docs/api_freeze.md; policies in docs/v1_plan.md.
+- Post-v1: v1.1 (resample options, ewm, df.eval, MultiIndex
+  label-range slicing, keepdims), v1.2 (optional adapter modules:
+  gonum linalg, Arrow interchange — core stays zero-dependency),
+  continuous golden expansion tracking new pandas releases. The two
+  big deliberate gaps — timezone dtype and MultiIndex columns — are
+  candidate themes for v1.3+, each a phase of its own.
+
+## v0.10 — reshape depth + prerelease candidate
 
 - Stack/Unstack over MultiIndex (future-stack NA semantics, duplicate
   detection); PivotTable with multiple values/aggfuncs/multi-key index

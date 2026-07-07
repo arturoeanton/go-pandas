@@ -1,7 +1,8 @@
-# Public API freeze audit (v1.0.0-rc.1)
+# Public API contract (v1.0.0 — FROZEN)
 
-This is the v1.0 stability classification of the public surface.
-Classes:
+This document is the **v1.0 contract**: every group below marked
+stable keeps its names, signatures, error sentinels and documented
+semantics for the whole v1 major. Classes:
 
 - **stable** — golden-tested, fuzz-hardened, no rename planned; the
   v1.0 contract. Breaking changes only with a major version.
@@ -152,11 +153,13 @@ None currently — the v0.9/v0.10 placeholder replacements (`Resample`,
 `Stack`) removed APIs that only ever returned ErrNotImplemented, with
 CHANGELOG migration notes instead of aliases.
 
-## Freeze verdict (rc.1)
+## Freeze verdict (v1.0.0)
 
-Every group above marked **stable** is the v1.0 contract. The three
-former experimental items were resolved: NDArray string semantics are
-final, MultiIndex level operations (DropLevel/SwapLevel/ReorderLevels/
-XS) shipped and are stable, and the Resampler scope is pinned. What
-remains beyond v1.0 is listed per group as experimental-post-v1 or
-planned-post-v1 — see docs/v1_plan.md for policies.
+**Frozen.** Every group above marked stable is the v1.0 contract,
+effective with the v1.0.0 tag. The three former experimental items
+were resolved in rc.1: NDArray string semantics are final, MultiIndex
+level operations (DropLevel/SwapLevel/ReorderLevels/XS) shipped and
+are stable, and the Resampler scope is pinned. What remains beyond
+v1.0 is listed per group as experimental-post-v1 or planned-post-v1 —
+policies in docs/v1_plan.md; the documented entries in
+compat/known_differences.md are part of this contract.

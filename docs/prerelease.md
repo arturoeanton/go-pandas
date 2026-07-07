@@ -1,11 +1,15 @@
-# go-pandas pre-release status (v0.10)
+# go-pandas project status
+
+> Historical note: this document framed the v0.10 prerelease. Since
+> **v1.0.0 the API is frozen** — see docs/api_freeze.md for the
+> contract and docs/v1_plan.md for the policies. The sections below
+> remain accurate as an orientation guide.
 
 ## Where the project stands
 
-go-pandas is **pre-v1**. The API is still experimental and may change
-between minor versions (changes are documented in the CHANGELOG with
-migration notes). What makes it a serious prerelease: every core path
-is verified against **301 golden outputs generated from real pandas
+go-pandas is **v1.0**: the stable API keeps its names, signatures and
+documented semantics for the whole v1 major. Every core path is
+verified against **301 golden outputs generated from real pandas
 2.3.3 and NumPy 2.0.2**, fuzz-tested, race-tested and benchmarked, with
 zero dependencies outside the Go standard library.
 
