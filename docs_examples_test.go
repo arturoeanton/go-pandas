@@ -4,6 +4,7 @@ package pandas_test
 // executable snippet shown in the documentation is exercised here.
 
 import (
+	"strings"
 	"testing"
 
 	pd "github.com/arturoeanton/go-pandas"
@@ -28,6 +29,9 @@ func TestReadmeDataFrameExample(t *testing.T) {
 	}
 	if top.Head(5).Len() != 2 {
 		t.Fatalf("example result rows = %d", top.Len())
+	}
+	if plan := pd.DebugPlan(df, pd.Col("age").Gt(30)); !strings.HasPrefix(plan, "columnar") {
+		t.Fatalf("DebugPlan = %s", plan)
 	}
 	if _, err := df.Corr(); err != nil {
 		t.Fatal(err)

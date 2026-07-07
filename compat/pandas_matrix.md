@@ -23,8 +23,8 @@ Differences in behavior are documented in [known_differences.md](known_differenc
 |---|---|---|---|
 | df["col"] | df.Col("col") (alias Column) | done | |
 | df[["a","b"]] | df.Select("a","b") | done | |
-| df[df.x > 1] | df.Where(pd.Col("x").Gt(1)) / df.Filter(mask) | done | |
-| df.query(...) | df.Query("age > 30 and c in [...] and name.str.contains(...)") | partial | comparisons, and/or/not, in, str.contains/startswith/endswith, bare bool columns |
+| df[df.x > 1] | df.Where(pd.Col("x").Gt(1)) / df.Filter(mask) | done | columnar engine (v0.4) |
+| df.query(...) | df.Query("age > 30 and c in [...] and name.str.contains(...)") | partial | columnar execution (v0.4); comparisons, and/or/not, in, str accessor, bare bool columns |
 | df.eval(...) | — | planned | expression API covers the use case |
 | df.loc[...] | df.Loc().Rows(...)/RowsBetween/Cols(...).Get() | partial | inclusive pd.LabelSlice |
 | df.iloc[...] | df.ILoc().Rows(ints/slices).Cols(...).Get() | partial | Go-style [start:stop); no negative step |
@@ -39,7 +39,7 @@ Differences in behavior are documented in [known_differences.md](known_differenc
 
 | pandas API | go-pandas API | Status | Notes |
 |---|---|---|---|
-| df.assign(...) | df.Assign / AssignValue / AssignFunc / AssignExpr | done | |
+| df.assign(...) | df.Assign / AssignValue / AssignFunc / AssignExpr | done | AssignExpr columnar + typed result (v0.4) |
 | df.drop(columns=...) | df.Drop(...) | done | |
 | df.rename(columns=...) | df.Rename(map) | done | |
 | df.sort_values(...) | df.SortValues / df.SortValuesBy | done | NA last, stable |

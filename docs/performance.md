@@ -22,6 +22,18 @@ BenchmarkNDArraySum1M             ~2.7 ms/op
 BenchmarkNDArrayAstypeIntToFloat  ~3.4 ms/op, 7 allocs (was ~10 ms / 1M allocs boxed)
 ```
 
+Columnar expression engine vs row-map fallback (the v0.4 win, 100K rows):
+
+```text
+BenchmarkWhereNumericColumnar100K        ~4.3 ms/op, 260K allocs
+BenchmarkWhereNumericRowMap100K          ~17.3 ms/op, 560K allocs   (~4x slower)
+BenchmarkAssignExprNumericColumnar100K   ~1.3 ms/op, 63 allocs
+BenchmarkAssignExprNumericRowMap100K     ~16.4 ms/op, 386K allocs   (~13x slower)
+BenchmarkQueryNumericColumnar100K        ~3.2 ms/op
+BenchmarkStringContainsColumnar100K      ~0.62 ms/op, 31 allocs
+BenchmarkBooleanAndColumnar100K          ~5.1 ms/op
+```
+
 Typed vs object storage (the v0.3 win):
 
 ```text
@@ -35,6 +47,9 @@ BenchmarkDataFrameGroupByObject   ~9.8 ms/op, 15.5 MB
 
 ## Current design
 
+- **Columnar expressions** (v0.4): Where/AssignExpr/Query evaluate over
+  typed buffers with three-valued NA masks; the row-map evaluator remains
+  as fallback for object columns and custom expressions.
 - **Typed storage everywhere** (v0.3): Series columns and NDArrays hold
   real `[]int` / `[]float64` / `[]bool` / `[]string` / `[]time.Time`
   buffers plus a missing mask; `[]any` remains only for mixed data.
@@ -48,9 +63,8 @@ BenchmarkDataFrameGroupByObject   ~9.8 ms/op, 15.5 MB
 
 - GroupBy still builds per-group key strings and boxes group keys
   (~500K allocs at 100K rows); a typed key-hash path is the next win.
-- Expression evaluation (Where/AssignExpr) builds a `map[string]any` per
-  row — the DataFrameFilter numbers are dominated by it. A columnar
-  expression engine is planned.
+- Where/Query still allocate during row gathering: `Take` boxes index
+  labels (the ~260K allocs above). A typed index gather is planned.
 - Int arrays sum through a float conversion pass; direct integer
   kernels would remove the remaining gap.
 - MatMul is a straightforward ikj loop; blocked kernels or the gonum

@@ -39,6 +39,12 @@ df.ReplaceNA(v)                  // one fill value for every column
   never selects a missing age. `Ne` on NA is also false (documented
   difference: pandas `!=` against NaN is True; go-pandas treats all
   NA comparisons uniformly as false).
+- **Predicate masks are three-valued** inside the columnar engine
+  (v0.4): a row can be true, false or NA. Filtering drops NA rows
+  (pandas boolean-indexing behavior); `And`/`Or`/`Not` combine with
+  Kleene logic (`false AND NA == false`, `true OR NA == true`,
+  `NOT NA == NA`); assigning a predicate stores NA results as `false`.
+  See [expression_engine.md](expression_engine.md).
 - **Arithmetic propagates NA**: `NA + x` is NA, in expressions, Series
   ops and cumulative ops (`Cumsum` keeps accumulating across gaps, the
   gap itself stays NA — pandas semantics).

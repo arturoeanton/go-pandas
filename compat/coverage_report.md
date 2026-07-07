@@ -54,6 +54,11 @@ gonum adapter), keepdims/axis tuples, fancy integer indexing, negative
 slice steps, searchsorted/isin, random distributions beyond
 rand/randn/randint.
 
+**Expressions (v0.4):** Where/AssignExpr/Query execute on the columnar
+engine for typed columns (10 expression golden cases mirror pandas
+boolean indexing, assign and query); the row evaluator remains the
+verified fallback.
+
 **Storage (v0.3):** NDArrays and Series columns store real typed
 backings (bool/int/int64/float32/float64/string, plus time for Series);
 `[]any` object storage remains only for mixed values. Verified by 19

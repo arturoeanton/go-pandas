@@ -389,8 +389,34 @@ def dtypes_suite():
     write("dtypes.json", "pandas.dtypes", cases)
 
 
+def expressions_suite():
+    df = people()
+    shop = pd.DataFrame(
+        [
+            {"item": "pen", "price": 1.5, "qty": 10},
+            {"item": "book", "price": 12.0, "qty": 2},
+            {"item": "mug", "price": 7.25, "qty": 4},
+        ],
+        columns=["item", "price", "qty"],
+    )
+    cases = [
+        case("expr_filter_gt", "df[df['age'] > 30]", ser_frame(df[df["age"] > 30])),
+        case("expr_filter_and", "df[(df['age'] > 30) & (df['salary'] < 2000)]", ser_frame(df[(df["age"] > 30) & (df["salary"] < 2000)])),
+        case("expr_filter_or_not", "df[(df['age'] >= 40) | ~(df['dept'] == 'eng')]", ser_frame(df[(df["age"] >= 40) | ~(df["dept"] == "eng")])),
+        case("expr_filter_contains", "df[df['name'].str.contains('a')]", ser_frame(df[df["name"].str.contains("a")])),
+        case("expr_filter_isin", "df[df['country'].isin(['BR'])]", ser_frame(df[df["country"].isin(["BR"])])),
+        case("expr_assign_total", "shop.assign(total=price*qty)", ser_frame(shop.assign(total=shop["price"] * shop["qty"]))),
+        case("expr_assign_flag", "df.assign(flag=age>30)[['name','flag']]", ser_frame(df.assign(flag=df["age"] > 30)[["name", "flag"]])),
+        case("expr_assign_ratio", "shop.assign(r=price/qty)[['item','r']]", ser_frame(shop.assign(r=shop["price"] / shop["qty"])[["item", "r"]])),
+        case("expr_query_gt", "df.query('age > 30')", ser_frame(df.query("age > 30"))),
+        case("expr_query_and", "df.query('age > 30 and salary < 2000')", ser_frame(df.query("age > 30 and salary < 2000"))),
+    ]
+    write("expressions.json", "pandas.expressions", cases)
+
+
 def main():
     dtypes_suite()
+    expressions_suite()
     dataframe_core()
     series_core()
     groupby()

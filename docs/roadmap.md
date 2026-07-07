@@ -1,6 +1,16 @@
 # Roadmap
 
-## v0.3 (this release) — real typed storage
+## v0.4 (this release) — columnar expression engine
+
+- Where/AssignExpr/Query evaluate over typed column buffers with
+  three-valued NA masks and Kleene logic; row-map evaluation remains the
+  documented fallback (object columns, custom expressions).
+- Typed kernels: numeric/string/time comparisons, isin/isna/contains,
+  and/or/not, arithmetic with dtype preservation, Where(cond, x, y).
+- Plan diagnostics (pd.DebugPlan) and behavior-equivalence tests between
+  both engines.
+
+## v0.3 — real typed storage
 
 - Typed column engine behind Series/DataFrame (bool/int/int64/float32/
   float64/string/time + object fallback), typed NDArray backings,
@@ -23,7 +33,7 @@
 - IO: usecols/nrows/keep_default_na; JSON split/columns orientations.
 - Fuzz tests, benchmarks, compatibility scoring.
 
-## v0.4 — stronger pandas
+## v0.5 — stronger pandas
 
 - MultiIndex beyond construction; groupby/set_index integration.
 - Categorical dtype (typed storage for categories).
@@ -32,15 +42,15 @@
 - pivot_table with multiple values/aggfuncs; stack/unstack.
 - df.eval; stronger query parser (arithmetic in queries).
 
-## v0.5 — performance backends
+## v0.6 — performance backends
 
-- Columnar expression engine (retire the per-row map in Where/Assign).
+- Typed index gather (remove label boxing in Take/Where).
 - Integer compute kernels (skip the float64 pass); typed groupby keys.
 - Arrow interchange; Parquet and DuckDB adapters; gonum linalg adapter
   (det/inv/solve/eig/SVD).
 - Optional SIMD kernels.
 
-## v0.6 — compatibility expansion
+## v0.7 — compatibility expansion
 
 - Excel and SQL IO.
 - ewm; expanding aggregation parity.

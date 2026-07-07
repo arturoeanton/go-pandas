@@ -60,7 +60,7 @@ func (c ColumnExpr) NotNA() Predicate {
 // IsIn is true when the column value equals one of the given values.
 func (c ColumnExpr) IsIn(values ...any) Predicate {
 	vals := append([]any(nil), values...)
-	return funcPred{name: "isin", inner: c, f: func(v any) (bool, error) {
+	return funcPred{name: "isin", inner: c, values: vals, f: func(v any) (bool, error) {
 		if dtype.IsNA(v) {
 			return false, nil
 		}
@@ -73,8 +73,8 @@ func (c ColumnExpr) IsIn(values ...any) Predicate {
 	}}
 }
 
-func (c ColumnExpr) stringPred(name string, f func(s string) bool) Predicate {
-	return funcPred{name: name, inner: c, f: func(v any) (bool, error) {
+func (c ColumnExpr) stringPred(name, arg string, f func(s string) bool) Predicate {
+	return funcPred{name: name, inner: c, strArg: arg, f: func(v any) (bool, error) {
 		if dtype.IsNA(v) {
 			return false, nil
 		}
@@ -88,17 +88,17 @@ func (c ColumnExpr) stringPred(name string, f func(s string) bool) Predicate {
 
 // Contains is true when the string column contains substr.
 func (c ColumnExpr) Contains(substr string) Predicate {
-	return c.stringPred("contains", func(s string) bool { return strings.Contains(s, substr) })
+	return c.stringPred("contains", substr, func(s string) bool { return strings.Contains(s, substr) })
 }
 
 // StartsWith is true when the string column starts with prefix.
 func (c ColumnExpr) StartsWith(prefix string) Predicate {
-	return c.stringPred("startswith", func(s string) bool { return strings.HasPrefix(s, prefix) })
+	return c.stringPred("startswith", prefix, func(s string) bool { return strings.HasPrefix(s, prefix) })
 }
 
 // EndsWith is true when the string column ends with suffix.
 func (c ColumnExpr) EndsWith(suffix string) Predicate {
-	return c.stringPred("endswith", func(s string) bool { return strings.HasSuffix(s, suffix) })
+	return c.stringPred("endswith", suffix, func(s string) bool { return strings.HasSuffix(s, suffix) })
 }
 
 // Arithmetic ------------------------------------------------------------
@@ -110,11 +110,15 @@ func (c ColumnExpr) Div(v any) Expr { return binaryExpr{left: c, right: asExpr(v
 func (c ColumnExpr) Mod(v any) Expr { return binaryExpr{left: c, right: asExpr(v), op: "%"} }
 func (c ColumnExpr) Pow(v any) Expr { return binaryExpr{left: c, right: asExpr(v), op: "**"} }
 
-// funcPred adapts a single-value boolean function into a Predicate.
+// funcPred adapts a single-value boolean function into a Predicate. The
+// strArg/values metadata mirrors the closure so the columnar engine can
+// run typed kernels without calling f per row.
 type funcPred struct {
-	name  string
-	inner Expr
-	f     func(v any) (bool, error)
+	name   string
+	inner  Expr
+	f      func(v any) (bool, error)
+	strArg string
+	values []any
 }
 
 func (p funcPred) Eval(row map[string]any) (any, error) { return p.EvalBool(row) }

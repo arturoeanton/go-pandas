@@ -27,7 +27,18 @@ func (df *DataFrame) Filter(mask *series.Series) (*DataFrame, error) {
 // Where keeps the rows matching a predicate (the pandas df[df.x > 1]):
 //
 //	df.Where(pd.Col("age").Gt(30))
+//
+// Typed columns run through the columnar engine (v0.4); object-backed
+// columns and custom predicates fall back to per-row evaluation.
 func (df *DataFrame) Where(pred expr.Predicate) (*DataFrame, error) {
+	if out, ok, err := df.whereColumnar(pred); ok || err != nil {
+		return out, err
+	}
+	return df.whereRows(pred)
+}
+
+// whereRows is the row-map fallback evaluator (pre-v0.4 behavior).
+func (df *DataFrame) whereRows(pred expr.Predicate) (*DataFrame, error) {
 	records := df.ToRecords()
 	var pos []int
 	for i, rec := range records {

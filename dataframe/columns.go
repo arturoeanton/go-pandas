@@ -123,7 +123,18 @@ func (df *DataFrame) AssignFunc(name string, fn func(row map[string]any) any) (*
 // AssignExpr adds or replaces a column computed from an expression:
 //
 //	df.AssignExpr("total", pd.Col("price").Mul(pd.Col("qty")))
+//
+// Typed columns run through the columnar engine (v0.4), producing a
+// typed result column without boxing; otherwise the row fallback runs.
 func (df *DataFrame) AssignExpr(name string, e expr.Expr) (*DataFrame, error) {
+	if out, ok, err := df.assignColumnar(name, e); ok || err != nil {
+		return out, err
+	}
+	return df.assignExprRows(name, e)
+}
+
+// assignExprRows is the row-map fallback evaluator (pre-v0.4 behavior).
+func (df *DataFrame) assignExprRows(name string, e expr.Expr) (*DataFrame, error) {
 	records := df.ToRecords()
 	values := make([]any, len(records))
 	for i, rec := range records {

@@ -13,9 +13,12 @@
 go-pandas is a compatibility-oriented data toolkit: pandas-style
 `DataFrame`/`Series` and NumPy-style `NDArray` with the same concepts,
 names and behavior — verified against **golden outputs generated from
-real pandas and NumPy** (220 test cases, pandas 2.3 / NumPy 2.0).
+real pandas and NumPy** (230 test cases, pandas 2.3 / NumPy 2.0).
 
-Since v0.3 storage is **typed**: `pd.ArrayInt` really stores `[]int`,
+Since v0.4, `Where`/`AssignExpr`/`Query` run on a **columnar expression
+engine**: typed kernels over column buffers instead of a map per row
+(filters ~4x faster, expression assignment ~13x, `pd.DebugPlan` shows the
+chosen path). Since v0.3 storage is **typed**: `pd.ArrayInt` really stores `[]int`,
 `pd.SeriesOf("x", []string{...})` really stores `[]string`, DataFrame
 columns and CSV parsing infer typed columns, and arithmetic promotes
 dtypes NumPy-style (`int + float64 → float64`). Mixed data falls back to
@@ -23,11 +26,11 @@ object storage — `StorageDType()` / `IsObjectBacked()` tell you which.
 
 ## Stability status
 
-go-pandas v0.3.x is **experimental**. The API is not yet v1 stable.
+go-pandas v0.4.x is **experimental**. The API is not yet v1 stable.
 Compatibility is conceptual and behavioral where tested, not Python
 syntax compatibility. Current coverage, computed from the matrices with
-`go run ./cmd/compat-report`: pandas 93% of 98 tracked rows, NumPy 88%
-of 52 tracked rows — including partial rows
+`go run ./cmd/compat-report`: pandas 93% of 98 tracked rows, NumPy 89%
+of 53 tracked rows — including partial rows
 ([full report](compat/coverage_report.md), [what's intentionally
 different](compat/known_differences.md)).
 
@@ -91,6 +94,7 @@ adults, _ := df.Query(`age > 30 and country in ["AR", "BR"]`)
 top, _ := adults.SortValues("salary", false)
 fmt.Println(top.Head(5))
 
+fmt.Println(pd.DebugPlan(df, pd.Col("age").Gt(30))) // "columnar: ..."
 stats, _ := df.Corr()          // correlation matrix
 clean := df.DropNA()           // missing-data handling
 byType, _ := df.SelectDTypes(pd.Include(pd.Number))
@@ -204,9 +208,9 @@ go test ./benchmarks/ -bench=. -benchmem
 
 ## Roadmap
 
-[docs/roadmap.md](docs/roadmap.md) — v0.3 pandas depth (MultiIndex,
-categorical, resample), v0.4 performance backends (typed storage, Arrow,
-gonum), v1.0 stable API.
+[docs/roadmap.md](docs/roadmap.md) — v0.5 pandas depth (MultiIndex,
+categorical, resample), v0.6 performance backends (typed index gather,
+Arrow, gonum), v1.0 stable API.
 
 ## Development
 

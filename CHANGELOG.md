@@ -1,5 +1,52 @@
 # Changelog
 
+## v0.4.0 - Columnar Expression Engine
+
+### Added
+- Columnar expression engine in `expr`: expressions evaluate over the
+  v0.3 typed column buffers through an `EvalContext` (column resolver
+  closure) producing typed result columns and three-valued predicate
+  masks (`Mask{Data, NA}`).
+- Typed kernels: numeric/string/time comparisons (scalar and
+  column-column), `IsNA`/`NotNA`/`IsIn` (numeric and string sets),
+  `Contains`/`StartsWith`/`EndsWith`, Kleene `And`/`Or`/`Not`,
+  arithmetic with dtype preservation (int⊗int → Int64 column,
+  Div → Float64, string Add → concat), `AbsExpr/SqrtExpr/LogExpr/
+  ExpExpr`, `Lower`/`Upper`/`Len` and `Where(cond, x, y)`.
+- Plan diagnostics: `df.Plan(expr)` and `pd.DebugPlan(df, expr)` report
+  "columnar", "row-fallback" or "error" with the reason.
+- 10 expression golden cases generated from real pandas (boolean
+  indexing, combined masks, str.contains filters, assign, query).
+  Golden total: 220 → 230.
+- Engine equivalence tests: 15 predicate shapes run through both paths
+  and must produce identical frames; NA/Kleene semantics, dtype
+  preservation, immutability and plan diagnostics are unit-tested.
+
+### Improved
+- `df.Where`, `df.Filter`-adjacent flows, `df.AssignExpr` and `df.Query`
+  use the columnar engine when every operand is typed; the row-map
+  evaluator remains as the automatic, behavior-identical fallback
+  (object-backed columns, mixed-kind comparisons, custom expressions).
+- `AssignExpr` attaches typed result columns without boxing (int*int
+  lands as an Int64 column, predicates as Bool columns).
+
+### Performance (100K rows, Apple M4)
+- Where numeric: 4.3 ms vs 17.3 ms row-map (~4x).
+- AssignExpr numeric: 1.3 ms vs 16.4 ms row-map (~13x; 63 allocs vs
+  386K).
+- Query (two comparisons + and): 3.2 ms; string contains: 0.62 ms.
+
+### Compatibility
+- No public API changes; NA-in-predicate behavior is unchanged
+  (filters drop NA rows, assigned predicates store false) and now
+  documented in docs/expression_engine.md and docs/missing_values.md.
+
+### Known limitations
+- Planning works by attempting evaluation (no static cost model).
+- Row gathering still boxes index labels in Take (~260K allocs on a
+  100K-row filter); typed index gather is the next optimization.
+- Mixed-kind comparisons fall back instead of failing fast.
+
 ## v0.3.0 - Real typed storage
 
 The headline: dtypes stopped being labels. NDArray, Series and DataFrame

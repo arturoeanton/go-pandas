@@ -1,0 +1,297 @@
+{
+ "suite": "pandas.expressions",
+ "pandas_version": "2.3.3",
+ "cases": [
+  {
+   "name": "expr_filter_gt",
+   "operation": "df[df['age'] > 30]",
+   "expected": {
+    "columns": [
+     "country",
+     "name",
+     "age",
+     "salary",
+     "dept"
+    ],
+    "rows": [
+     [
+      "AR",
+      "Luis",
+      40,
+      2000.0,
+      "sales"
+     ],
+     [
+      "BR",
+      "Joao",
+      35,
+      1500.0,
+      "eng"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "expr_filter_and",
+   "operation": "df[(df['age'] > 30) & (df['salary'] < 2000)]",
+   "expected": {
+    "columns": [
+     "country",
+     "name",
+     "age",
+     "salary",
+     "dept"
+    ],
+    "rows": [
+     [
+      "BR",
+      "Joao",
+      35,
+      1500.0,
+      "eng"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "expr_filter_or_not",
+   "operation": "df[(df['age'] >= 40) | ~(df['dept'] == 'eng')]",
+   "expected": {
+    "columns": [
+     "country",
+     "name",
+     "age",
+     "salary",
+     "dept"
+    ],
+    "rows": [
+     [
+      "AR",
+      "Luis",
+      40,
+      2000.0,
+      "sales"
+     ],
+     [
+      "AR",
+      "Mia",
+      22,
+      800.0,
+      "sales"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "expr_filter_contains",
+   "operation": "df[df['name'].str.contains('a')]",
+   "expected": {
+    "columns": [
+     "country",
+     "name",
+     "age",
+     "salary",
+     "dept"
+    ],
+    "rows": [
+     [
+      "AR",
+      "Ana",
+      30,
+      1000.0,
+      "eng"
+     ],
+     [
+      "BR",
+      "Joao",
+      35,
+      1500.0,
+      "eng"
+     ],
+     [
+      "BR",
+      "Bia",
+      28,
+      1200.0,
+      "eng"
+     ],
+     [
+      "AR",
+      "Mia",
+      22,
+      800.0,
+      "sales"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "expr_filter_isin",
+   "operation": "df[df['country'].isin(['BR'])]",
+   "expected": {
+    "columns": [
+     "country",
+     "name",
+     "age",
+     "salary",
+     "dept"
+    ],
+    "rows": [
+     [
+      "BR",
+      "Joao",
+      35,
+      1500.0,
+      "eng"
+     ],
+     [
+      "BR",
+      "Bia",
+      28,
+      1200.0,
+      "eng"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "expr_assign_total",
+   "operation": "shop.assign(total=price*qty)",
+   "expected": {
+    "columns": [
+     "item",
+     "price",
+     "qty",
+     "total"
+    ],
+    "rows": [
+     [
+      "pen",
+      1.5,
+      10,
+      15.0
+     ],
+     [
+      "book",
+      12.0,
+      2,
+      24.0
+     ],
+     [
+      "mug",
+      7.25,
+      4,
+      29.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "expr_assign_flag",
+   "operation": "df.assign(flag=age>30)[['name','flag']]",
+   "expected": {
+    "columns": [
+     "name",
+     "flag"
+    ],
+    "rows": [
+     [
+      "Ana",
+      false
+     ],
+     [
+      "Luis",
+      true
+     ],
+     [
+      "Joao",
+      true
+     ],
+     [
+      "Bia",
+      false
+     ],
+     [
+      "Mia",
+      false
+     ]
+    ]
+   }
+  },
+  {
+   "name": "expr_assign_ratio",
+   "operation": "shop.assign(r=price/qty)[['item','r']]",
+   "expected": {
+    "columns": [
+     "item",
+     "r"
+    ],
+    "rows": [
+     [
+      "pen",
+      0.15
+     ],
+     [
+      "book",
+      6.0
+     ],
+     [
+      "mug",
+      1.8125
+     ]
+    ]
+   }
+  },
+  {
+   "name": "expr_query_gt",
+   "operation": "df.query('age > 30')",
+   "expected": {
+    "columns": [
+     "country",
+     "name",
+     "age",
+     "salary",
+     "dept"
+    ],
+    "rows": [
+     [
+      "AR",
+      "Luis",
+      40,
+      2000.0,
+      "sales"
+     ],
+     [
+      "BR",
+      "Joao",
+      35,
+      1500.0,
+      "eng"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "expr_query_and",
+   "operation": "df.query('age > 30 and salary < 2000')",
+   "expected": {
+    "columns": [
+     "country",
+     "name",
+     "age",
+     "salary",
+     "dept"
+    ],
+    "rows": [
+     [
+      "BR",
+      "Joao",
+      35,
+      1500.0,
+      "eng"
+     ]
+    ]
+   }
+  }
+ ]
+}

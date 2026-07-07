@@ -130,6 +130,16 @@ accessor yet (v0.3).
 `pd.Rand`/`pd.Randn` match NumPy distributions and shapes, not values —
 the underlying generators differ. Golden tests check properties only.
 
+## Columnar expression engine (v0.4)
+
+`Where`/`AssignExpr`/`Query` execute over typed column buffers when
+possible and fall back to per-row evaluation otherwise — results are
+identical by construction (equivalence-tested). One nuance: predicate
+masks are three-valued internally (Kleene `And`/`Or`/`Not` over NA), but
+filters drop NA rows and predicate *assignment* stores NA as `false`,
+so the observable behavior matches both the row evaluator and pandas'
+classic bool arrays. `pd.DebugPlan(df, expr)` reports the chosen path.
+
 ## Series results that return Series
 
 `Series.ValueCounts` and `Series.Describe` return a `*Series` (pandas

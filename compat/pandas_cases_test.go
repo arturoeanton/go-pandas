@@ -33,6 +33,19 @@ func dateSeries() *pd.Series {
 	})
 }
 
+func shopFrame(t *testing.T) *pd.DataFrame {
+	t.Helper()
+	df, err := pd.DataFrameFromRecords([]map[string]any{
+		{"item": "pen", "price": 1.5, "qty": 10},
+		{"item": "book", "price": 12.0, "qty": 2},
+		{"item": "mug", "price": 7.25, "qty": 4},
+	}, pd.WithColumnOrder("item", "price", "qty"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return df
+}
+
 func dupFrame(t *testing.T) *pd.DataFrame {
 	t.Helper()
 	df, err := pd.DataFrameFromRecords([]map[string]any{
@@ -408,6 +421,46 @@ var pandasCases = map[string]caseFn{
 	},
 	"dtype_to_datetime": func(t *testing.T) (any, error) {
 		return pd.ToDatetime(pd.StringSeries("d", []string{"2024-01-02"}))
+	},
+
+	// expressions (v0.4 columnar engine) ------------------------------------------
+	"expr_filter_gt": func(t *testing.T) (any, error) {
+		return peopleFrame(t).Where(pd.Col("age").Gt(30))
+	},
+	"expr_filter_and": func(t *testing.T) (any, error) {
+		return peopleFrame(t).Where(pd.And(pd.Col("age").Gt(30), pd.Col("salary").Lt(2000)))
+	},
+	"expr_filter_or_not": func(t *testing.T) (any, error) {
+		return peopleFrame(t).Where(pd.Or(pd.Col("age").Ge(40), pd.Not(pd.Col("dept").Eq("eng"))))
+	},
+	"expr_filter_contains": func(t *testing.T) (any, error) {
+		return peopleFrame(t).Where(pd.Col("name").Contains("a"))
+	},
+	"expr_filter_isin": func(t *testing.T) (any, error) {
+		return peopleFrame(t).Where(pd.Col("country").IsIn("BR"))
+	},
+	"expr_assign_total": func(t *testing.T) (any, error) {
+		return shopFrame(t).AssignExpr("total", pd.Col("price").Mul(pd.Col("qty")))
+	},
+	"expr_assign_flag": func(t *testing.T) (any, error) {
+		df, err := peopleFrame(t).AssignExpr("flag", pd.Col("age").Gt(30))
+		if err != nil {
+			return nil, err
+		}
+		return df.Select("name", "flag")
+	},
+	"expr_assign_ratio": func(t *testing.T) (any, error) {
+		df, err := shopFrame(t).AssignExpr("r", pd.Col("price").Div(pd.Col("qty")))
+		if err != nil {
+			return nil, err
+		}
+		return df.Select("item", "r")
+	},
+	"expr_query_gt": func(t *testing.T) (any, error) {
+		return peopleFrame(t).Query("age > 30")
+	},
+	"expr_query_and": func(t *testing.T) (any, error) {
+		return peopleFrame(t).Query("age > 30 and salary < 2000")
 	},
 
 	// io ------------------------------------------------------------------------

@@ -6,6 +6,15 @@ import (
 
 // v0.3 typed-storage surface.
 
+// DebugPlan reports which execution path an expression takes on a frame:
+// "columnar" (v0.4 typed kernels) or "row-fallback". For debugging and
+// tests:
+//
+//	fmt.Println(pd.DebugPlan(df, pd.Col("age").Gt(30)))
+func DebugPlan(df *DataFrame, e Expr) string {
+	return df.Plan(e).String()
+}
+
 // ArrayString builds a 1-D array backed by []string. String arrays
 // support comparisons, Sort, Unique and Astype; arithmetic returns
 // errors.
