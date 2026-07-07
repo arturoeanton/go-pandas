@@ -34,9 +34,13 @@ type Index interface {
 // StringIndex and DatetimeIndex gather their typed backings.
 func Take(idx Index, positions []int) Index {
 	// MultiIndex gathers codes typed and handles negative positions as
-	// all-NA tuples itself (v0.8).
+	// all-NA tuples itself (v0.8); DatetimeIndex gathers typed with NA
+	// labels for negative positions (v0.9).
 	if mi, ok := idx.(*MultiIndex); ok {
 		return mi.Take(positions)
+	}
+	if di, ok := idx.(*DatetimeIndex); ok {
+		return di.Take(positions)
 	}
 	for _, p := range positions {
 		if p < 0 {
@@ -58,12 +62,6 @@ func Take(idx Index, positions []int) Index {
 			values[i] = ix.values[p]
 		}
 		return NewStringIndex(values, ix.name)
-	case *DatetimeIndex:
-		values := make([]time.Time, len(positions))
-		for i, p := range positions {
-			values[i] = ix.values[p]
-		}
-		return NewDatetimeIndex(values, ix.name)
 	}
 	return takeBoxed(idx, positions)
 }

@@ -1,0 +1,191 @@
+{
+ "suite": "pandas.timeseries",
+ "pandas_version": "2.3.3",
+ "cases": [
+  {
+   "name": "ts_to_datetime_format",
+   "operation": "to_datetime(format='%d/%m/%Y') day-first",
+   "expected": {
+    "values": [
+     "2026-02-01",
+     "2026-12-28"
+    ]
+   }
+  },
+  {
+   "name": "ts_to_datetime_coerce",
+   "operation": "to_datetime(errors='coerce') bad -> NaT",
+   "expected": {
+    "values": [
+     "2026-01-01",
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "name": "ts_resample_d_sum",
+   "operation": "resample('D').sum() unsorted + dup + NA value",
+   "expected": {
+    "columns": [
+     "date",
+     "v"
+    ],
+    "rows": [
+     [
+      "2026-01-01",
+      1.0
+     ],
+     [
+      "2026-01-02",
+      6.0
+     ],
+     [
+      "2026-01-03",
+      10.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "ts_resample_d_mean",
+   "operation": "resample('D').mean()",
+   "expected": {
+    "columns": [
+     "date",
+     "v"
+    ],
+    "rows": [
+     [
+      "2026-01-01",
+      1.0
+     ],
+     [
+      "2026-01-02",
+      3.0
+     ],
+     [
+      "2026-01-03",
+      10.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "ts_resample_d_count",
+   "operation": "resample('D').count() counts non-NA per column",
+   "expected": {
+    "columns": [
+     "date",
+     "v",
+     "tag"
+    ],
+    "rows": [
+     [
+      "2026-01-01",
+      1,
+      2
+     ],
+     [
+      "2026-01-02",
+      2,
+      2
+     ],
+     [
+      "2026-01-03",
+      1,
+      1
+     ]
+    ]
+   }
+  },
+  {
+   "name": "ts_resample_d_min",
+   "operation": "resample('D').min(numeric_only)",
+   "expected": {
+    "columns": [
+     "date",
+     "v"
+    ],
+    "rows": [
+     [
+      "2026-01-01",
+      1.0
+     ],
+     [
+      "2026-01-02",
+      2.0
+     ],
+     [
+      "2026-01-03",
+      10.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "ts_resample_h_sum",
+   "operation": "resample('h').sum()",
+   "expected": {
+    "columns": [
+     "date",
+     "v"
+    ],
+    "rows": [
+     [
+      "2026-01-01 09:00:00",
+      3.0
+     ],
+     [
+      "2026-01-01 10:00:00",
+      3.0
+     ],
+     [
+      "2026-01-01 11:00:00",
+      4.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "ts_resample_ms_sum",
+   "operation": "resample('MS').sum()",
+   "expected": {
+    "columns": [
+     "date",
+     "v"
+    ],
+    "rows": [
+     [
+      "2026-01-01",
+      3.0
+     ],
+     [
+      "2026-02-01",
+      3.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "ts_resample_me_sum",
+   "operation": "resample('ME').sum() month-end labels",
+   "expected": {
+    "columns": [
+     "date",
+     "v"
+    ],
+    "rows": [
+     [
+      "2026-01-31",
+      3.0
+     ],
+     [
+      "2026-02-28",
+      3.0
+     ]
+    ]
+   }
+  }
+ ]
+}

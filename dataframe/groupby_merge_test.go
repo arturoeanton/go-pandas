@@ -369,8 +369,10 @@ func TestReshape(t *testing.T) {
 	if _, err := df.Unstack(); !errors.Is(err, errs.ErrNotImplementedBase) {
 		t.Errorf("Unstack error = %v", err)
 	}
-	if _, err := df.Resample("1D"); !errors.Is(err, errs.ErrNotImplementedBase) {
-		t.Errorf("Resample error = %v", err)
+	// v0.9: Resample is real; without a DatetimeIndex it errors at
+	// aggregation time.
+	if _, err := df.Resample("D").Sum(); !errors.Is(err, errs.ErrInvalidIndex) {
+		t.Errorf("Resample without DatetimeIndex error = %v", err)
 	}
 }
 

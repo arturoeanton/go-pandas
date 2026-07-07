@@ -242,6 +242,33 @@ classic bool arrays. `pd.DebugPlan(df, expr)` reports the chosen path.
 `Series.ResetIndex` returns a `*Series` without inserting a label column;
 `DataFrame.ResetIndex` does insert one, like pandas.
 
-## Resampler / Stack / Unstack
+## Time series (v0.9)
 
-`DataFrame.Resample`, `Stack` and `Unstack` return `ErrNotImplemented`.
+`pd.ToDatetime` and `DataFrame.Resample` are real since v0.9 (see
+docs/timeseries.md). Documented differences:
+
+- **No timezone dtype** — no `tz_localize`/`tz_convert`;
+  `WithDatetimeUTC` only calls `.UTC()` on parsed values.
+- **Limited directive set** (%Y %y %m %d %H %M %S .%f %z %%) and a
+  **deterministic inference list** instead of pandas/dateutil broad
+  inference; the ambiguous slash form is day-first. Explicit formats
+  are preferred. `errors="ignore"` is not supported.
+- **Resample emits observed buckets only**; pandas fills the full
+  frequency grid with empty buckets.
+- **"M" means month-start** in go-pandas (pandas M/ME are month-end);
+  use `MS`/`ME` to be explicit. `W` anchors Monday-start (pandas W is
+  Sunday-end labeled).
+- No `closed`/`label`/`origin`/`offset` resample options.
+- No resample by a MultiIndex datetime level (ErrNotImplemented).
+- Sum/Mean skip non-numeric columns (pandas numeric_only=True).
+- No partial-string datetime indexing (`df.loc["2026-01-03"]` matching
+  a whole day); datetime Loc labels match exactly, ranges via
+  `RowsBetween`.
+- Resample's old v0.1 placeholder signature `Resample(rule) (*Resampler,
+  error)` became `Resample(rule) *Resampler` — errors surface from the
+  aggregation calls, like GroupBy. The placeholder only ever returned
+  ErrNotImplemented.
+
+## Stack / Unstack
+
+`DataFrame.Stack` and `Unstack` return `ErrNotImplemented`.

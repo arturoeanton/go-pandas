@@ -36,9 +36,15 @@ const (
 
 // Datetime helpers ------------------------------------------------------------
 
-// ToDatetime converts a string series to a datetime series, like
-// pd.to_datetime(s).
-func ToDatetime(s *Series) (*Series, error) { return s.Astype(dtype.Time) }
+// ToDatetime converts a series to typed datetime storage, like
+// pd.to_datetime(s, format=..., errors=...). Since v0.9 it accepts
+// pandas-style options:
+//
+//	pd.ToDatetime(s, pd.WithDatetimeFormat("%Y-%m-%d"))
+//	pd.ToDatetime(s, pd.WithDatetimeErrors("coerce"))
+func ToDatetime(s *Series, opts ...DatetimeOption) (*Series, error) {
+	return series.ToDatetime(s, opts...)
+}
 
 // ParseDatetime parses a single datetime string with the common layouts.
 func ParseDatetime(v string) (time.Time, error) { return dtype.ParseTime(v) }

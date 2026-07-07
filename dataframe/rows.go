@@ -6,6 +6,7 @@ import (
 
 	"github.com/arturoeanton/go-pandas/errs"
 	"github.com/arturoeanton/go-pandas/index"
+	"github.com/arturoeanton/go-pandas/internal/column"
 	"github.com/arturoeanton/go-pandas/series"
 )
 
@@ -191,10 +192,15 @@ func (df *DataFrame) setIndexMulti(columns []string) (*DataFrame, error) {
 	return newFrame(cols, idx)
 }
 
-func (df *DataFrame) setIndexSingle(column string) (*DataFrame, error) {
-	c, err := df.Col(column)
+func (df *DataFrame) setIndexSingle(colName string) (*DataFrame, error) {
+	c, err := df.Col(colName)
 	if err != nil {
 		return nil, err
+	}
+	// Datetime columns become a real DatetimeIndex (v0.9), enabling
+	// Resample and time-based Loc.
+	if times, mask, ok := column.Times(c.Storage()); ok {
+		return df.replaceIndex(colName, index.NewDatetimeIndexWithMask(times, mask, colName))
 	}
 	values := c.Values()
 	allStrings := true
@@ -209,15 +215,21 @@ func (df *DataFrame) setIndexSingle(column string) (*DataFrame, error) {
 	}
 	var idx index.Index
 	if allStrings && len(values) > 0 {
-		idx = index.NewStringIndex(strs, column)
+		idx = index.NewStringIndex(strs, colName)
 	} else {
 		labels := make([]string, len(values))
 		for i, v := range values {
 			labels[i] = fmt.Sprint(v)
 		}
-		idx = index.NewStringIndex(labels, column)
+		idx = index.NewStringIndex(labels, colName)
 	}
-	rest, err := df.Drop(column)
+	return df.replaceIndex(colName, idx)
+}
+
+// replaceIndex drops the consumed index column and re-homes the
+// remaining columns on the new index.
+func (df *DataFrame) replaceIndex(colName string, idx index.Index) (*DataFrame, error) {
+	rest, err := df.Drop(colName)
 	if err != nil {
 		return nil, err
 	}

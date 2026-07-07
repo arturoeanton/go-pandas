@@ -526,7 +526,58 @@ def multiindex_suite():
     write("multiindex.json", "pandas.multiindex", cases)
 
 
+def timeseries_suite():
+    # Dense timestamps (no frequency gaps) so pandas' bucket grid equals
+    # go-pandas' observed buckets.
+    ts = pd.DataFrame({
+        "date": pd.to_datetime([
+            "2026-01-02 10:00:00",  # unsorted on purpose
+            "2026-01-01 09:30:00",
+            "2026-01-01 15:00:00",
+            "2026-01-02 10:00:00",  # duplicate timestamp
+            "2026-01-03 08:00:00",
+        ]),
+        "v": [2.0, 1.0, None, 4.0, 10.0],  # one missing value
+        "tag": ["b", "a", "c", "d", "f"],
+    }, columns=["date", "v", "tag"]).set_index("date")
+    hours = pd.DataFrame({
+        "date": pd.to_datetime([
+            "2026-01-01 09:10:00", "2026-01-01 09:50:00",
+            "2026-01-01 10:20:00", "2026-01-01 11:59:00",
+        ]),
+        "v": [1.0, 2.0, 3.0, 4.0],
+    }, columns=["date", "v"]).set_index("date")
+    months = pd.DataFrame({
+        "date": pd.to_datetime(["2026-01-15", "2026-01-20", "2026-02-03"]),
+        "v": [1.0, 2.0, 3.0],
+    }, columns=["date", "v"]).set_index("date")
+    fmt_parsed = pd.to_datetime(pd.Series(["01/02/2026", "28/12/2026"]), format="%d/%m/%Y")
+    coerced = pd.to_datetime(pd.Series(["2026-01-01", "bad", ""]), errors="coerce")
+    cases = [
+        case("ts_to_datetime_format", "to_datetime(format='%d/%m/%Y') day-first",
+             ser_series(fmt_parsed.dt.strftime("%Y-%m-%d"))),
+        case("ts_to_datetime_coerce", "to_datetime(errors='coerce') bad -> NaT",
+             ser_series(coerced.dt.strftime("%Y-%m-%d"))),
+        case("ts_resample_d_sum", "resample('D').sum() unsorted + dup + NA value",
+             ser_frame(ts.resample("D").sum(numeric_only=True).reset_index())),
+        case("ts_resample_d_mean", "resample('D').mean()",
+             ser_frame(ts.resample("D").mean(numeric_only=True).reset_index())),
+        case("ts_resample_d_count", "resample('D').count() counts non-NA per column",
+             ser_frame(ts.resample("D").count().reset_index())),
+        case("ts_resample_d_min", "resample('D').min(numeric_only)",
+             ser_frame(ts.resample("D").min(numeric_only=True).reset_index())),
+        case("ts_resample_h_sum", "resample('h').sum()",
+             ser_frame(hours.resample("h").sum(numeric_only=True).reset_index())),
+        case("ts_resample_ms_sum", "resample('MS').sum()",
+             ser_frame(months.resample("MS").sum(numeric_only=True).reset_index())),
+        case("ts_resample_me_sum", "resample('ME').sum() month-end labels",
+             ser_frame(months.resample("ME").sum(numeric_only=True).reset_index())),
+    ]
+    write("timeseries.json", "pandas.timeseries", cases)
+
+
 def main():
+    timeseries_suite()
     multiindex_suite()
     categorical_suite()
     dtypes_suite()

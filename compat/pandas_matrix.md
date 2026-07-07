@@ -101,7 +101,10 @@ Differences in behavior are documented in [known_differences.md](known_differenc
 | s.mean/median/std/var/quantile/sum/count/min/max | same names | done | skipna default; ddof=1 |
 | s.reindex(...) | s.Reindex(idx) | done | |
 | s.describe() | s.Describe() | partial | returns labeled Series |
-| pd.to_datetime(s) | pd.ToDatetime(s) | partial | common layouts, no format arg |
+| pd.to_datetime(s) | pd.ToDatetime(s) | done | deterministic inference list (v0.9) |
+| pd.to_datetime(s, format=...) | pd.ToDatetime(s, pd.WithDatetimeFormat("%Y-%m-%d")) | done | %Y %y %m %d %H %M %S .%f %z %% |
+| pd.to_datetime(errors="coerce") | pd.WithDatetimeErrors("coerce") | done | "ignore" not supported |
+| pd.to_datetime(unit=...) | pd.WithDatetimeUnit("s"/"ms"/"us"/"ns") | done | numeric unix timestamps |
 
 ## String and datetime accessors
 
@@ -154,7 +157,14 @@ Differences in behavior are documented in [known_differences.md](known_differenc
 | s.rolling(w, min_periods, center) | s.Rolling(w, MinPeriods/RollingCenter) | done | count/sum/mean/median/min/max/std/var |
 | df.rolling(...) | df.Rolling(w, ...) | done | numeric columns |
 | s.expanding()/df.expanding() | s.Expanding() / df.Expanding() | done | count/sum/mean/median/min/max/std/var |
-| df.resample(...) | df.Resample(...) | not_supported | ErrNotImplemented |
+| df.set_index(datetime col) | df.SetIndex("date") | done | real DatetimeIndex with NA mask (v0.9) |
+| df.resample("D"/"h"/"W"/"MS"/"ME") | df.Resample("D"/"H"/"W"/"MS"/"ME") | partial | observed buckets only; "M"=month-start; W anchors Monday |
+| resample sum/mean | Resample(...).Sum()/Mean() | done | numeric columns, NA skipped, all-NA sum=0 mean=NA |
+| resample count/min/max | Count()/Min()/Max() | done | count all columns; min/max typed kernels |
+| resample first/last | First()/Last() | done | row order within bucket, dtypes preserved |
+| resample closed/label/origin/offset | — | planned | |
+| resample by MultiIndex level | — | planned | ErrNotImplemented |
+| tz_localize / tz_convert | — | not_supported | no timezone dtype |
 | s.ewm(...) | — | planned | |
 
 ## IO

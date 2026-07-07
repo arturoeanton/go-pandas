@@ -38,6 +38,19 @@ BenchmarkPositionsFromMask100K           ~0.10 ms/op, 1 alloc
 BenchmarkDropNA100K                      ~0.91 ms/op, 44 allocs
 ```
 
+Time series (v0.9, Apple M4, 100K rows, minute granularity over ~70
+days):
+
+```text
+BenchmarkToDatetimeFormat100K       ~8.5 ms/op  (~85 ns/row, explicit format)
+BenchmarkToDatetimeInfer100K        ~22 ms/op   (inference list; format is ~2.5x faster)
+BenchmarkDatetimeIndexLookup100K    ~185 µs/op  (linear scan)
+BenchmarkResampleDailySum100K       ~2.6 ms/op, 43 allocs
+BenchmarkResampleHourlyMean100K     ~3.1 ms/op, 66 allocs
+BenchmarkResampleMonthlyCount100K   ~1.8 ms/op, 25 allocs
+BenchmarkResampleUnsorted100K       ~2.7 ms/op  (input order does not matter)
+```
+
 MultiIndex (v0.8, Apple M4, 100K rows, 8x50 label space):
 
 ```text

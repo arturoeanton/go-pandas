@@ -192,6 +192,22 @@ s.dt.quarter            s.Dt().Quarter()
 pd.to_datetime(s)       pd.ToDatetime(s)
 ```
 
+## Time series (v0.9)
+
+```python
+pd.to_datetime(s)                         pd.ToDatetime(s)  // deterministic inference
+pd.to_datetime(s, format="%Y-%m-%d")      pd.ToDatetime(s, pd.WithDatetimeFormat("%Y-%m-%d"))
+pd.to_datetime(s, errors="coerce")        pd.ToDatetime(s, pd.WithDatetimeErrors("coerce"))
+pd.to_datetime(s, unit="s")               pd.ToDatetime(s, pd.WithDatetimeUnit("s"))
+df.set_index("date")                      df.SetIndex("date")  // -> DatetimeIndex
+df.resample("D").sum()                    df.Resample("D").Sum()
+df.resample("h").mean()                   df.Resample("H").Mean()
+df.resample("MS").count()                 df.Resample("MS").Count()
+```
+
+See [timeseries.md](timeseries.md) for directives, frequencies and the
+observed-buckets difference.
+
 ## MultiIndex (v0.8)
 
 ```python

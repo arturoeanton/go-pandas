@@ -1,6 +1,24 @@
 # Roadmap
 
-## v0.8 (this release) — real MultiIndex
+## v0.9 (this release) — to_datetime + basic Resample
+
+- Format-aware pd.ToDatetime: strftime directives (%Y %y %m %d %H %M
+  %S .%f %z %%), raise/coerce error modes, deterministic inference
+  list (day-first slash form), unix-timestamp units, UTC option.
+- DatetimeIndex hardening: NA mask (NaT), typed Take/SlicePos through
+  every engine, Start/End/IsMonotonicIncreasing/RawTimes, lookup by
+  time.Time or parseable string; SetIndex on a datetime column builds
+  a real DatetimeIndex.
+- Resample over DatetimeIndex: H/D/W(MS Monday)/MS/ME buckets via
+  floor + dense group ids reusing the typed groupby reducers;
+  sum/mean/count/min/max/first/last; observed buckets only.
+
+## v0.10 — reshape depth
+
+- stack/unstack over MultiIndex; pivot_table with multiple
+  values/aggfuncs.
+
+## v0.8 — real MultiIndex
 
 - Levels + int32 codes storage with sorted unique levels and NA
   components as code -1 (pandas parity, golden-verified). Constructors
@@ -110,8 +128,8 @@ remains for a later phase.
 
 - MultiIndex level operations (swaplevel/droplevel/xs, merge on levels,
   label-range slicing over sorted indexes).
-- Timezone-aware datetimes; to_datetime with formats.
-- Resample; time-based rolling windows.
+- Timezone-aware datetimes; resample closed/label/origin options and
+  MultiIndex-level resample; time-based rolling windows.
 - pivot_table with multiple values/aggfuncs; stack/unstack.
 - df.eval; stronger query parser (arithmetic in queries).
 

@@ -13,8 +13,12 @@
 go-pandas is a compatibility-oriented data toolkit: pandas-style
 `DataFrame`/`Series` and NumPy-style `NDArray` with the same concepts,
 names and behavior — verified against **golden outputs generated from
-real pandas and NumPy** (263 test cases, pandas 2.3 / NumPy 2.0).
+real pandas and NumPy** (272 test cases, pandas 2.3 / NumPy 2.0).
 
+Since v0.9, the common **time-series workflow works end to end**:
+format-aware `pd.ToDatetime` (strftime directives, raise/coerce), a
+real `DatetimeIndex` from `SetIndex`, and `df.Resample("D").Sum()` over
+observed buckets (H/D/W/MS/ME; a 100K-row daily sum takes ~2.6 ms).
 Since v0.8, the **MultiIndex is real**: levels + int32 codes like
 pandas, with multi-column `SetIndex`, `ResetIndex`, tuple-based `Loc`
 (full-tuple lookups in ~100 ns at 100K rows), optional
@@ -39,10 +43,10 @@ object storage — `StorageDType()` / `IsObjectBacked()` tell you which.
 
 ## Stability status
 
-go-pandas v0.8.x is **experimental**. The API is not yet v1 stable.
+go-pandas v0.9.x is **experimental**. The API is not yet v1 stable.
 Compatibility is conceptual and behavioral where tested, not Python
 syntax compatibility. Current coverage, computed from the matrices with
-`go run ./cmd/compat-report`: pandas 92% of 119 tracked rows, NumPy 89%
+`go run ./cmd/compat-report`: pandas 91% of 129 tracked rows, NumPy 89%
 of 53 tracked rows — including partial rows
 ([full report](compat/coverage_report.md), [what's intentionally
 different](compat/known_differences.md)).
@@ -78,6 +82,8 @@ Zero dependencies outside the standard library.
 | `df.set_index(["c1","c2"])` | `df.SetIndex("c1", "c2")` |
 | `df.loc[("AR", "BA")]` | `df.Loc().Tuple("AR", "BA").Get()` |
 | `df.groupby(["a","b"], as_index=True)` | `df.GroupBy("a", "b").AsIndex(true)` |
+| `pd.to_datetime(s, format="%Y-%m-%d")` | `pd.ToDatetime(s, pd.WithDatetimeFormat("%Y-%m-%d"))` |
+| `df.resample("D").sum()` | `df.Resample("D").Sum()` |
 
 Full guide: [docs/pandas_translation_guide.md](docs/pandas_translation_guide.md)
 
@@ -233,8 +239,8 @@ go test ./benchmarks/ -bench=. -benchmem
 
 ## Roadmap
 
-[docs/roadmap.md](docs/roadmap.md) — pandas depth next (to_datetime
-formats, resample, timezones), then performance backends (Arrow, gonum,
+[docs/roadmap.md](docs/roadmap.md) — pandas depth next (stack/unstack,
+timezones, resample options), then performance backends (Arrow, gonum,
 SIMD), v1.0 stable API.
 
 ## Development

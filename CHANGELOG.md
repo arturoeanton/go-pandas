@@ -1,5 +1,64 @@
 # Changelog
 
+## v0.9.0 - to_datetime and Basic Resample
+
+### Added
+- Format-aware `pd.ToDatetime` / `Series.ToDatetime`: strftime
+  directives %Y %y %m %d %H %M %S .%f (1–6 digits) %z %% translated to
+  Go layouts with strict validation (unknown directives error).
+  Options: `pd.WithDatetimeFormat`, `pd.WithDatetimeErrors`
+  ("raise" default / "coerce" -> NA; "ignore" rejected),
+  `pd.WithDatetimeUnit` ("s"/"ms"/"us"/"ns" unix timestamps),
+  `pd.WithDatetimeUTC`. nil stays NA, time.Time passes through, empty
+  and invalid strings raise/coerce. Without a format, a deterministic
+  inference list applies (RFC3339, ISO forms, 2006/01/02, day-first
+  slash form) — documented, not dateutil-style broad inference.
+- DatetimeIndex hardening: NA mask (NaT labels), typed
+  `Take`/`SlicePos` (negative positions become NA labels),
+  `Start`/`End`/`IsMonotonicIncreasing`/`RawTimes`, label lookup and
+  inclusive `Slice` by time.Time or parseable string. `SetIndex` on a
+  datetime column now builds a real DatetimeIndex (previously labels
+  were stringified — a documented behavior improvement).
+- `DataFrame.Resample(freq)` over a DatetimeIndex: frequencies H, D,
+  W (Monday anchor), MS ("M" aliases month-START, documented
+  difference; pandas M/ME are month-end) and ME (month-end labels).
+  Aggregations Sum/Mean (numeric only, NA skipped, all-NA sum=0
+  mean=NA), Count (non-NA per column), Min/Max (typed kernels incl.
+  strings/times), First/Last (row order, dtypes preserved). Input
+  order irrelevant; NA timestamps skipped; observed buckets only;
+  output DatetimeIndex sorted ascending. The engine floors timestamps
+  to buckets and reuses the typed GroupBy segment reducers — no
+  sub-frame per bucket, no per-row boxing. Resample on a MultiIndex
+  returns ErrNotImplemented (planned).
+- 9-case timeseries golden suite from pandas 2.3.3 (272 goldens
+  total), 4 fuzz targets (format roundtrips, index Take invariants,
+  daily/hourly resample sum preservation), 7 benchmarks,
+  docs/timeseries.md.
+
+### Improved
+- The v0.1 `Resample` placeholder (always ErrNotImplemented, returned
+  `(*Resampler, error)`) became the real chainable API
+  (`Resample(freq) *Resampler`); errors surface from the aggregation
+  calls, like GroupBy.
+
+### Performance (Apple M4, 100K rows, measured)
+- ToDatetime explicit format 8.5 ms (~85 ns/row); inference 22 ms.
+- Resample: daily sum 2.6 ms / 43 allocs; hourly mean 3.1 ms; monthly
+  count 1.8 ms; unsorted input costs the same as sorted.
+
+### Compatibility
+- Matrix: 129 tracked rows (+10 time-series rows incl. planned
+  timezone/options rows), 91% implemented — counted honestly against
+  the larger surface. Golden values verified against pandas resample
+  D/h/MS/ME with unsorted input, duplicate timestamps and NA values.
+
+### Known limitations
+- No timezone dtype (tz_localize/tz_convert not supported).
+- Observed buckets only (pandas fills the frequency grid).
+- No closed/label/origin/offset resample options; no MultiIndex-level
+  resample; no partial-string datetime indexing; DatetimeIndex lookup
+  is a linear scan.
+
 ## v0.8.0 - Real MultiIndex
 
 ### Added

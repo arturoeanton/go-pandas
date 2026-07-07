@@ -209,10 +209,6 @@ func (df *DataFrame) Unstack() (*DataFrame, error) {
 	return nil, errs.NotImplemented("DataFrame.Unstack")
 }
 
-// Resampler is a placeholder for time-based resampling.
-type Resampler struct{}
-
-// Resample is not implemented in v0.1.
-func (df *DataFrame) Resample(rule string) (*Resampler, error) {
-	return nil, errs.NotImplemented("DataFrame.Resample")
-}
+// Resample lives in resample.go (real engine since v0.9; the v0.1
+// placeholder returned ErrNotImplemented and a second error value —
+// errors now surface from the aggregation calls, like GroupBy).
