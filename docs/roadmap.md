@@ -12,7 +12,13 @@
 
 ## v0.10.x — release-candidate hardening
 
-- API audit fixes, extended fuzz time, docs/example coverage.
+- v0.10.1 shipped the deep hardening pass (panic audit, invariant
+  validators, typed NDArray.Take 1-D, typed Stack interleave).
+- v0.10.2 shipped the API freeze audit (docs/api_freeze.md), sentinel
+  error tests, the feature-tour example and the release checklist.
+- Remaining before v1.0: typed Unstack and typed N-D NDArray.Take
+  (performance only, semantics already correct), resolution of the
+  experimental entries in api_freeze.md.
 
 ## v0.9 — to_datetime + basic Resample
 

@@ -47,13 +47,16 @@ object storage — `StorageDType()` / `IsObjectBacked()` tell you which.
 
 ## Status
 
-go-pandas is **pre-v1**. The API is still experimental, but the core
-DataFrame, Series, NDArray, GroupBy, Merge, Concat, Categorical,
-MultiIndex and time-series paths are golden-tested against real
-pandas/NumPy outputs. Compatibility is conceptual and behavioral where
-tested, not Python syntax compatibility. Current coverage, computed
-from the matrices with `go run ./cmd/compat-report`: pandas 93% of 134
-tracked rows, NumPy 91% of 54 tracked rows — including partial rows
+go-pandas is **pre-v1**. The API is still experimental but **nearing
+freeze** — the stability of every public group is classified in
+[docs/api_freeze.md](docs/api_freeze.md). The core DataFrame, Series,
+NDArray, GroupBy, Merge, Concat, Categorical, MultiIndex and
+time-series paths are golden-tested against real pandas/NumPy outputs,
+and known differences are documented, never hidden. Compatibility is
+conceptual and behavioral where tested, not Python syntax
+compatibility. Current coverage, computed from the matrices with
+`go run ./cmd/compat-report`: pandas 93% of 134 tracked rows, NumPy
+91% of 54 tracked rows — including partial rows
 ([full report](compat/coverage_report.md), [what's intentionally
 different](compat/known_differences.md), [prerelease
 status](docs/prerelease.md)).

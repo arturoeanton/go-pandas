@@ -269,6 +269,23 @@ docs/timeseries.md). Documented differences:
   aggregation calls, like GroupBy. The placeholder only ever returned
   ErrNotImplemented.
 
+## Performance limitations (not semantic differences)
+
+These paths are correct but boxed; results match the typed paths, only
+slower (documented in docs/benchmarking.md, scheduled in the roadmap):
+
+- `Unstack` rebuilds cells through `[]any`.
+- N-D `NDArray.Take` (the axis form) copies per slice; the 1-D
+  contiguous form is typed (v0.10.1).
+- Object-backed columns always use boxed fallbacks (by design).
+
+## NumPy linear algebra gaps
+
+Only `MatMul` is implemented; `det`/`inv`/`solve`/`eig`/SVD are planned
+via an optional gonum adapter (separate module, keeping the core
+dependency-free). `keepdims` and axis tuples on reductions remain
+planned.
+
 ## NDArray operations on string arrays (v0.10.1)
 
 NumPy raises on invalid ufunc dtypes; several go-pandas NDArray methods

@@ -1,5 +1,55 @@
 # Changelog
 
+## v0.10.2 - Release Candidate Polish and API Freeze Audit
+
+### API Audit
+- docs/api_freeze.md classifies every public group (DataFrame, Series,
+  NDArray, Index family, MultiIndex, Categorical, GroupBy, Resampler,
+  Expr/Query, IO, DTypes, Errors, Options) as stable, experimental or
+  planned. Naming/signature review found no renames warranted: the
+  surface follows Go idioms (New*/From*/With*/Is*), error channels
+  exist wherever invalid input is possible, Must* helpers document
+  their panic contract, and no deprecated aliases were needed (the
+  only signature changes in history replaced dead ErrNotImplemented
+  placeholders, with CHANGELOG migration notes).
+- Error API frozen: TestErrorSentinelConsistency pins 21 public
+  failure modes to their sentinels with errors.Is (bad column/dtype/
+  shape/broadcast/index/position/query/frequency/pivot/stack/unstack/
+  take/searchsorted/categorical/datetime-directive/string-array
+  arithmetic).
+
+### Docs
+- docs/release_checklist.md: the per-release gate, how to cut v0.10.x
+  patches, how to prepare v1.0, and what must not change after the
+  freeze. README status updated to "experimental but nearing freeze"
+  with a pointer to the freeze audit. known_differences gains explicit
+  performance-limitations (Unstack, N-D Take — correct but boxed) and
+  NumPy-linalg-gap sections; roadmap records the v0.10.x outcome and
+  the remaining pre-v1 items.
+
+### Examples
+- examples/tour: one runnable program covering categorical, MultiIndex
+  tuple Loc, stack/unstack, multi-value/multi-agg pivot_table, query
+  grammar, groupby transform/filter, to_datetime + resample, and
+  NDArray IsIn/SearchSorted/typed Take.
+
+### Fuzzing
+- Long-run validation: 8 key targets (query parser, Where/Query
+  equivalence, broadcast, NDArray take, stack/unstack, pivot_table,
+  MultiIndex lookup, daily resample) at 60 seconds each — all clean,
+  no new failures.
+
+### Performance
+- Decision recorded: the two remaining boxed paths (typed Unstack,
+  typed N-D NDArray.Take) are deferred past the RC — they are
+  performance limitations, not semantic bugs; documented in
+  benchmarking.md, known_differences.md and the roadmap.
+
+### Compatibility
+- Matrices unchanged and re-verified: pandas 93% of 134 tracked rows,
+  NumPy 91% of 54; goldens steady at 295 (pandas 2.3.3 / NumPy 2.0.2).
+  No rows downgraded — the audit confirmed the recorded statuses.
+
 ## v0.10.1 - Release-Candidate Deep Hardening
 
 ### Fixed
