@@ -387,6 +387,9 @@ func (a *NDArray) VarDDof(ddof int, axis ...int) (*NDArray, error) {
 		if n-ddof <= 0 {
 			return scalarArray(math.NaN()), nil
 		}
+		if a.floatLoader() == nil {
+			return nil, fmt.Errorf("%w: var on %s array", errs.ErrTypeMismatch, a.dtype)
+		}
 		load := a.mustFloatLoader("var")
 		mean := a.MeanAll()
 		acc := 0.0

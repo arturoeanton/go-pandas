@@ -8,7 +8,7 @@ implemented; `planned` and `not_supported` do not. Reproduce them with:
 go run ./cmd/compat-report
 ```
 
-Behavioral verification: 289 golden test cases generated from real
+Behavioral verification: 295 golden test cases generated from real
 pandas 2.3.3 / NumPy 2.0.2 (`compat/goldens/`), all passing. A matrix row
 can group several closely-related pandas/NumPy APIs, so these counts are
 rows tracked, not individual Python functions.

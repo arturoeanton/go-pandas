@@ -244,7 +244,16 @@ def setops_v10():
     write("setops.json", "numpy.setops", cases)
 
 
+def hardening_v1001():
+    cases = [
+        case("take_repeated", "np.take with repeated indexes",
+             ser_array(np.take(np.array([10.0, 20.0, 30.0]), [2, 2, 0, 2]))),
+    ]
+    write("hardening_v1001.json", "numpy.hardening_v1001", cases)
+
+
 def main():
+    hardening_v1001()
     setops_v10()
     dtypes_suite()
     constructors()

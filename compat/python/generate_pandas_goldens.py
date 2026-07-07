@@ -633,7 +633,41 @@ def reshape_v10_suite():
     write("reshape_v10.json", "pandas.reshape_v10", cases)
 
 
+def hardening_v1001_suite():
+    naf = pd.DataFrame({"a": [1.0, None], "b": [None, 4.0]}, index=["x", "y"])
+    people = pd.DataFrame([
+        {"k": "a", "v": 1.0}, {"k": "a", "v": None}, {"k": "b", "v": 3.0},
+    ], columns=["k", "v"])
+    sales = pd.DataFrame([
+        {"c": "AR", "m": "jan", "v": 10.0},
+        {"c": "BR", "m": "feb", "v": 20.0},
+    ], columns=["c", "m", "v"])
+    ts = pd.DataFrame({
+        "date": pd.to_datetime(["2026-01-01 01:00", "2026-01-01 02:00", "2026-01-02 05:00"]),
+        "v": [None, None, 3.0],
+    }, columns=["date", "v"]).set_index("date")
+    prec = pd.DataFrame([
+        {"a": 2.0, "b": 3.0, "c": 4.0},
+        {"a": 5.0, "b": 1.0, "c": 0.0},
+    ], columns=["a", "b", "c"])
+    cases = [
+        case("h_stack_with_na", "stack(future_stack=True) keeps NA",
+             ser_series(naf.stack(future_stack=True).reset_index(drop=True))),
+        case("h_pivot_fill_value", "pivot_table fill_value=0",
+             ser_frame(pd.pivot_table(sales, values="v", index=["c"], columns=["m"],
+                                      aggfunc="sum", fill_value=0).reset_index())),
+        case("h_transform_with_na", "transform('count') with NA in group",
+             ser_series(people.groupby("k")["v"].transform("count").astype("int64"))),
+        case("h_query_precedence", "query('a + b * c > 10') precedence",
+             ser_frame(prec.query("a + b * c > 10"))),
+        case("h_resample_allna_bucket", "resample('D').mean() with all-NA bucket",
+             ser_frame(ts.resample("D").mean(numeric_only=True).reset_index())),
+    ]
+    write("hardening_v1001.json", "pandas.hardening_v1001", cases)
+
+
 def main():
+    hardening_v1001_suite()
     reshape_v10_suite()
     timeseries_suite()
     multiindex_suite()

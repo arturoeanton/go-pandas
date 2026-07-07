@@ -164,3 +164,40 @@ func BenchmarkNDArrayTake100K(b *testing.B) {
 		}
 	}
 }
+
+func benchTakeTyped(b *testing.B, a *ndarray.NDArray, n int) {
+	indices := make([]int, n)
+	for i := range indices {
+		indices[i] = (i * 7) % n
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := a.Take(indices, 0); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkNDArrayTakeInt100K(b *testing.B) {
+	data := make([]int, 100_000)
+	for i := range data {
+		data[i] = i
+	}
+	benchTakeTyped(b, ndarray.ArrayOf(data), len(data))
+}
+
+func BenchmarkNDArrayTakeFloat64100K(b *testing.B) {
+	data := make([]float64, 100_000)
+	for i := range data {
+		data[i] = float64(i)
+	}
+	benchTakeTyped(b, ndarray.Array(data), len(data))
+}
+
+func BenchmarkNDArrayTakeString100K(b *testing.B) {
+	data := make([]string, 100_000)
+	for i := range data {
+		data[i] = fmt.Sprintf("s%05d", i%1000)
+	}
+	benchTakeTyped(b, ndarray.ArrayString(data), len(data))
+}

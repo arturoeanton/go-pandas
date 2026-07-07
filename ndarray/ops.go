@@ -1,9 +1,11 @@
 package ndarray
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/arturoeanton/go-pandas/dtype"
+	"github.com/arturoeanton/go-pandas/errs"
 )
 
 func arithFunc(op string) func(x, y float64) float64 {
@@ -30,6 +32,9 @@ func binopAs(a, b *NDArray, resultDT dtype.DType, f func(x, y float64) float64) 
 	shape, err := BroadcastShapes(a.shape, b.shape)
 	if err != nil {
 		return nil, err
+	}
+	if a.floatLoader() == nil || b.floatLoader() == nil {
+		return nil, fmt.Errorf("%w: arithmetic between %s and %s arrays", errs.ErrTypeMismatch, a.dtype, b.dtype)
 	}
 	la := a.mustFloatLoader("arithmetic")
 	lb := b.mustFloatLoader("arithmetic")
@@ -103,8 +108,18 @@ func (a *NDArray) scalarResultDType(v float64, closed bool) dtype.DType {
 	return dtype.Float64
 }
 
-// scalarOp applies f elementwise, storing into resultDT.
+// scalarOp applies f elementwise, storing into resultDT. A string
+// backing has no numeric view and no error channel here: the result is
+// an all-NaN float64 array of the same shape (documented in
+// known_differences; v0.10.1 — previously this panicked).
 func (a *NDArray) scalarOp(op string, resultDT dtype.DType, f func(x float64) float64) *NDArray {
+	if a.floatLoader() == nil {
+		nan := make([]float64, a.Size())
+		for i := range nan {
+			nan[i] = math.NaN()
+		}
+		return newDense(nan, a.Shape(), dtype.Float64)
+	}
 	load := a.mustFloatLoader(op)
 	data := allocData(resultDT, a.Size())
 	store := floatStore(data)

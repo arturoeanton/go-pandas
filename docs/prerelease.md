@@ -5,7 +5,7 @@
 go-pandas is **pre-v1**. The API is still experimental and may change
 between minor versions (changes are documented in the CHANGELOG with
 migration notes). What makes it a serious prerelease: every core path
-is verified against **289 golden outputs generated from real pandas
+is verified against **295 golden outputs generated from real pandas
 2.3.3 and NumPy 2.0.2**, fuzz-tested, race-tested and benchmarked, with
 zero dependencies outside the Go standard library.
 

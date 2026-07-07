@@ -13,7 +13,7 @@
 go-pandas is a compatibility-oriented data toolkit: pandas-style
 `DataFrame`/`Series` and NumPy-style `NDArray` with the same concepts,
 names and behavior — verified against **golden outputs generated from
-real pandas and NumPy** (289 test cases, pandas 2.3 / NumPy 2.0).
+real pandas and NumPy** (295 test cases, pandas 2.3 / NumPy 2.0).
 
 Since v0.10, the **reshape surface is closed for common workflows**:
 `Stack`/`Unstack` over MultiIndex, `PivotTable` with multiple values

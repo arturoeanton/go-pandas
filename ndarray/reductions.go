@@ -1,13 +1,20 @@
 package ndarray
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/arturoeanton/go-pandas/dtype"
+	"github.com/arturoeanton/go-pandas/errs"
 )
 
-// reduceAll folds every element with f starting from init. Numeric only.
+// reduceAll folds every element with f starting from init. Numeric
+// only; a string backing returns NaN (no error channel on the *All
+// reductions — documented; v0.10.1, previously panicked).
 func (a *NDArray) reduceAll(init float64, f func(acc, x float64) float64) float64 {
+	if a.floatLoader() == nil {
+		return math.NaN()
+	}
 	load := a.mustFloatLoader("reduction")
 	acc := init
 	a.iter(func(off int) {
@@ -49,7 +56,7 @@ func (a *NDArray) MaxAll() float64 {
 // VarAll returns the population variance (ddof=0, NumPy default).
 func (a *NDArray) VarAll() float64 {
 	n := a.Size()
-	if n == 0 {
+	if n == 0 || a.floatLoader() == nil {
 		return math.NaN()
 	}
 	load := a.mustFloatLoader("var")
@@ -76,6 +83,9 @@ func scalarArray(v float64) *NDArray {
 func (a *NDArray) reduceAxis(axis int, outDT dtype.DType, init float64, f func(acc, x float64) float64, finish func(acc float64) float64) (*NDArray, error) {
 	if err := a.checkAxis(axis); err != nil {
 		return nil, err
+	}
+	if a.floatLoader() == nil {
+		return nil, fmt.Errorf("%w: reduction on %s array", errs.ErrTypeMismatch, a.dtype)
 	}
 	load := a.mustFloatLoader("reduction")
 	outShape := make([]int, 0, len(a.shape)-1)
@@ -215,6 +225,9 @@ func (a *NDArray) Std(axis ...int) (*NDArray, error) {
 // argReduce finds the flat index (along the axis or globally) selected by
 // better.
 func (a *NDArray) argReduce(axis []int, better func(cur, best float64) bool) (*NDArray, error) {
+	if a.floatLoader() == nil {
+		return nil, fmt.Errorf("%w: argmin/argmax on %s array", errs.ErrTypeMismatch, a.dtype)
+	}
 	load := a.mustFloatLoader("argmin/argmax")
 	if len(axis) == 0 {
 		best := math.NaN()

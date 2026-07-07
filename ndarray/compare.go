@@ -165,8 +165,13 @@ func (a *NDArray) NeScalar(v float64) *BoolArray {
 }
 
 func (a *NDArray) cmpScalar(f func(x float64) bool) *BoolArray {
-	load := a.mustFloatLoader("scalar comparison")
 	out := &BoolArray{data: make([]bool, a.Size()), shape: a.Shape()}
+	// String backings are incomparable to numeric scalars: all-false,
+	// the project-wide incomparable rule (v0.10.1 — previously panicked).
+	if a.floatLoader() == nil {
+		return out
+	}
+	load := a.mustFloatLoader("scalar comparison")
 	i := 0
 	a.iter(func(off int) {
 		out.data[i] = f(load(off))

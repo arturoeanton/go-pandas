@@ -27,47 +27,74 @@ func (df *DataFrame) Stack() (*series.Series, error) {
 	n, k := df.Len(), len(df.columns)
 	names := df.Columns()
 
-	// Index levels: the existing labels (per level for a MultiIndex)
-	// plus the column-name level.
-	var baseArrays [][]any
+	// Row levels: reuse MultiIndex levels/codes, or factorize the plain
+	// labels ONCE (v0.10.1 — previously every cell boxed its row label
+	// into a per-level array that re-factorized n*k values).
+	var rowLevels [][]any
+	var rowCodes [][]int32
 	var levelNames []string
 	switch ix := df.index.(type) {
 	case *index.MultiIndex:
-		baseArrays = make([][]any, ix.NLevels())
-		for l := range baseArrays {
-			baseArrays[l] = make([]any, 0, n*k)
-		}
+		rowLevels = ix.Levels()
+		rowCodes = ix.Codes()
 		levelNames = append(ix.Names(), "")
 	default:
-		baseArrays = [][]any{make([]any, 0, n*k)}
+		lv, codes := index.FactorizeLabels(df.index.Values())
+		rowLevels = [][]any{lv}
+		rowCodes = [][]int32{codes}
 		levelNames = []string{df.index.Name(), ""}
 	}
-	colLevel := make([]any, 0, n*k)
-	values := make([]any, 0, n*k)
+	// Column level keeps the original column order (pandas' stack
+	// column level; frame column names are unique by construction).
+	colLevel := make([]any, k)
+	for j, name := range names {
+		colLevel[j] = name
+	}
 
+	total := n * k
+	outCodes := make([][]int32, len(rowCodes)+1)
+	for l := range rowCodes {
+		expanded := make([]int32, total)
+		for i := 0; i < n; i++ {
+			c := rowCodes[l][i]
+			base := i * k
+			for j := 0; j < k; j++ {
+				expanded[base+j] = c
+			}
+		}
+		outCodes[l] = expanded
+	}
+	colCodes := make([]int32, total)
+	for i := 0; i < n; i++ {
+		base := i * k
+		for j := 0; j < k; j++ {
+			colCodes[base+j] = int32(j)
+		}
+	}
+	outCodes[len(rowCodes)] = colCodes
+	mi, err := index.NewMultiIndexFromCodes(append(rowLevels, colLevel), outCodes, levelNames)
+	if err != nil {
+		return nil, err
+	}
+
+	// Values: same-typed columns interleave into one typed buffer
+	// (v0.10.1); mixed dtypes keep the boxed Infer fallback.
+	storages := make([]column.Column, k)
+	for j, c := range df.columns {
+		storages[j] = c.Storage()
+	}
+	if col, ok := column.StackInterleave(storages); ok {
+		return series.Assemble("", col, mi), nil
+	}
+	values := make([]any, 0, total)
 	colValues := make([][]any, k)
 	for j, c := range df.columns {
 		colValues[j] = c.Values()
 	}
 	for i := 0; i < n; i++ {
-		var rowLabels []any
-		if mi, ok := df.index.(*index.MultiIndex); ok {
-			rowLabels = mi.Tuple(i)
-		} else {
-			rowLabels = []any{df.index.At(i)}
-		}
 		for j := 0; j < k; j++ {
-			for l := range baseArrays {
-				baseArrays[l] = append(baseArrays[l], rowLabels[l])
-			}
-			colLevel = append(colLevel, names[j])
 			values = append(values, colValues[j][i])
 		}
-	}
-	arrays := append(baseArrays, colLevel)
-	mi, err := index.NewMultiIndexFromArrays(arrays, levelNames)
-	if err != nil {
-		return nil, err
 	}
 	return series.Assemble("", column.Infer(values), mi), nil
 }

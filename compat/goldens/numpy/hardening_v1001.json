@@ -1,0 +1,21 @@
+{
+ "suite": "numpy.hardening_v1001",
+ "numpy_version": "2.0.2",
+ "cases": [
+  {
+   "name": "take_repeated",
+   "operation": "np.take with repeated indexes",
+   "expected": {
+    "shape": [
+     4
+    ],
+    "data": [
+     30.0,
+     30.0,
+     10.0,
+     30.0
+    ]
+   }
+  }
+ ]
+}

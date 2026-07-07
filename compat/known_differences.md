@@ -269,6 +269,21 @@ docs/timeseries.md). Documented differences:
   aggregation calls, like GroupBy. The placeholder only ever returned
   ErrNotImplemented.
 
+## NDArray operations on string arrays (v0.10.1)
+
+NumPy raises on invalid ufunc dtypes; several go-pandas NDArray methods
+predate error returns, so string arrays get documented results instead
+of the panics they previously produced:
+
+- Error-channel methods (`Add`/`Sub`/..., axis reductions,
+  `ArgMin`/`ArgMax`, `VarDDof`) return `ErrTypeMismatch`.
+- The `*All` reductions (`SumAll`, `MeanAll`, `VarAll`, ...) return
+  **NaN** (no error channel).
+- Scalar comparisons (`GtScalar`, ...) return an **all-false**
+  BoolArray — the project-wide incomparable rule.
+- Scalar math (`MulScalar`, `Sqrt`, ...) returns an **all-NaN** float64
+  array of the same shape.
+
 ## Reshape, transform/filter and query (v0.10)
 
 - **Stack keeps NA cells**, matching pandas' `future_stack=True` (v3

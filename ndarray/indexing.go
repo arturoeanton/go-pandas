@@ -96,9 +96,14 @@ func (a *NDArray) SetValue(value any, indices ...int) error {
 }
 
 // Take selects elements along an axis by position, returning a copy.
+// 1-D contiguous arrays gather through a typed buffer loop (v0.10.1 —
+// previously every element went through the boxed per-slice copier).
 func (a *NDArray) Take(indices []int, axis int) (*NDArray, error) {
 	if err := a.checkAxis(axis); err != nil {
 		return nil, err
+	}
+	if len(a.shape) == 1 && a.isContiguous() && a.offset == 0 {
+		return a.take1DTyped(indices)
 	}
 	outShape := a.Shape()
 	outShape[axis] = len(indices)
@@ -124,6 +129,69 @@ func (a *NDArray) Take(indices []int, axis int) (*NDArray, error) {
 		}
 	}
 	return out, nil
+}
+
+// take1DTyped gathers a 1-D contiguous array into one typed output
+// buffer with no boxing: one bounds-checked loop per backing type.
+// Negative indices wrap once (NumPy convention, like the generic path).
+func (a *NDArray) take1DTyped(indices []int) (*NDArray, error) {
+	n := a.shape[0]
+	resolved := make([]int, len(indices))
+	for i, src := range indices {
+		if src < 0 {
+			src += n
+		}
+		if src < 0 || src >= n {
+			return nil, fmt.Errorf("%w: take index %d out of range for axis 0 with size %d", errs.ErrIndexOutOfBounds, indices[i], n)
+		}
+		resolved[i] = src
+	}
+	gather := func() any {
+		switch d := a.data.(type) {
+		case []bool:
+			out := make([]bool, len(resolved))
+			for i, p := range resolved {
+				out[i] = d[p]
+			}
+			return out
+		case []int:
+			out := make([]int, len(resolved))
+			for i, p := range resolved {
+				out[i] = d[p]
+			}
+			return out
+		case []int64:
+			out := make([]int64, len(resolved))
+			for i, p := range resolved {
+				out[i] = d[p]
+			}
+			return out
+		case []float32:
+			out := make([]float32, len(resolved))
+			for i, p := range resolved {
+				out[i] = d[p]
+			}
+			return out
+		case []float64:
+			out := make([]float64, len(resolved))
+			for i, p := range resolved {
+				out[i] = d[p]
+			}
+			return out
+		case []string:
+			out := make([]string, len(resolved))
+			for i, p := range resolved {
+				out[i] = d[p]
+			}
+			return out
+		}
+		return nil
+	}
+	data := gather()
+	if data == nil {
+		return nil, fmt.Errorf("%w: take on %s array", errs.ErrTypeMismatch, a.dtype)
+	}
+	return newDense(data, []int{len(resolved)}, a.dtype), nil
 }
 
 // copyInto copies src's logical elements into dst (equal sizes, same

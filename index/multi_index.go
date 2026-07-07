@@ -113,6 +113,15 @@ func factorizeLevel(arr []any) (levels []any, codes []int32) {
 	return out, codes
 }
 
+// FactorizeLabels factorizes one label array into unique level values
+// plus codes (engine use: Stack factorizes the row labels once instead
+// of once per cell, v0.10.1). Same ordering rules as level
+// construction: sorted for one orderable family, first-appearance
+// otherwise; NA labels become code -1.
+func FactorizeLabels(arr []any) (levels []any, codes []int32) {
+	return factorizeLevel(arr)
+}
+
 // NewMultiIndexFromArrays builds a MultiIndex from parallel label
 // arrays, one per level. NA labels become code -1. Level lists are the
 // sorted unique labels per level (pandas parity) when orderable.
@@ -174,6 +183,43 @@ func NewMultiIndexFromTuples(tuples [][]any, names []string) (*MultiIndex, error
 		}
 	}
 	return NewMultiIndexFromArrays(arrays, names)
+}
+
+// NewMultiIndexFromCodes assembles a MultiIndex directly from level
+// lists and code arrays (engine use: Stack builds codes without boxing
+// every cell, v0.10.1). Validates shapes and code ranges; the caller
+// guarantees level values are unique and immutable afterwards. Level
+// order is caller-defined (e.g. Stack keeps original column order,
+// which is also pandas' stack behavior).
+func NewMultiIndexFromCodes(levels [][]any, codes [][]int32, names []string) (*MultiIndex, error) {
+	if len(levels) == 0 || len(levels) != len(codes) {
+		return nil, fmt.Errorf("%w: levels/codes count mismatch", errs.ErrInvalidIndex)
+	}
+	if names == nil {
+		names = make([]string, len(levels))
+	}
+	if len(names) != len(levels) {
+		return nil, fmt.Errorf("%w: %d names for %d levels", errs.ErrLengthMismatch, len(names), len(levels))
+	}
+	n := len(codes[0])
+	for l := range codes {
+		if len(codes[l]) != n {
+			return nil, fmt.Errorf("%w: code arrays must share one length", errs.ErrLengthMismatch)
+		}
+		for i, c := range codes[l] {
+			if c != -1 && (c < 0 || int(c) >= len(levels[l])) {
+				return nil, fmt.Errorf("%w: code %d out of range at level %d row %d", errs.ErrInvalidIndex, c, l, i)
+			}
+		}
+	}
+	return &MultiIndex{
+		names:       append([]string(nil), names...),
+		levels:      levels,
+		codes:       codes,
+		length:      n,
+		levelLookup: &miLevelLookup{},
+		posLookup:   &miPosLookup{},
+	}, nil
 }
 
 // derive builds a same-levels index over new codes (Take/SlicePos):

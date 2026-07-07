@@ -1,5 +1,67 @@
 # Changelog
 
+## v0.10.1 - Release-Candidate Deep Hardening
+
+### Fixed
+- NDArray operations on string arrays no longer panic: methods with an
+  error channel (arithmetic, axis reductions, argmin/argmax, VarDDof)
+  return ErrTypeMismatch; the error-less forms return documented
+  results (SumAll/MeanAll/VarAll -> NaN, GtScalar-family -> all-false,
+  scalar math/ufuncs -> all-NaN float64). Documented in
+  known_differences.md.
+
+### Hardened
+- Public API panic audit: TestNoPanicPublicAPIsInvalidInputs hammers
+  50+ invalid/empty/degenerate inputs (bad columns, dtypes, tuples,
+  formats, frequencies, query syntax, merge specs, pivot specs,
+  transform/filter specs, take indices, searchsorted sides, unhashable
+  values, empty frames) — none panic. Remaining panics are the
+  documented Must* helpers and internal invariant guards.
+- internal/checks invariant validators (Series/DataFrame/NDArray/
+  Index/MultiIndex/Categorical) used across the new audits: mask/code
+  alignment, unique categories/levels, lookup-vs-scan agreement, shape
+  products, index-length agreement.
+- Table-driven dtype preservation audits (Take/Where/Query/Sort/Head/
+  DropNA/Concat/Merge/Transform/Filter/Pivot/Stack/Unstack/Resample)
+  across bool/int/float/string/datetime/categorical columns.
+- Index preservation audits across RangeIndex/Int64Index/StringIndex/
+  DatetimeIndex/MultiIndex for filter/sort/take/transform.
+- Aliasing audit: Copy/Take/Slice never share mutable buffers;
+  concurrent categorical CodeOf and MultiIndex lookups race-verified.
+- Query parser: FuzzQueryParserNoPanic plus Where-vs-Query equivalence
+  fuzzing; parse errors always surface (never silent all/none rows).
+
+### Performance
+- NDArray.Take typed 1-D gather: ~8.2 ms / ~500K allocs -> **0.24–0.46
+  ms / 6 allocs** at 100K elements (int/float64/string; N-D axis form
+  keeps the per-slice copier).
+- Stack: typed value interleave for same-typed columns plus direct
+  MultiIndex code construction (row labels factorize once, column level
+  keeps original column order — also pandas' behavior): ~26 ms / ~499K
+  allocs -> **~13 ms / ~101K allocs** at 100K x 2. Unstack stays boxed
+  (documented deferral: the sparse cell grid makes a typed path
+  invasive; revisit post-RC).
+
+### Tests / Fuzzing / Goldens
+- New fuzz targets: FuzzQueryParserNoPanic, FuzzSeriesTakeSlice,
+  FuzzDataFrameWhereQuery, FuzzNDArrayBroadcastAdd,
+  FuzzNDArrayReshapeTranspose, FuzzNDArrayReductions (plus the
+  regression corpus). The broadcast fuzzer immediately caught a wrong
+  test expectation ((5,1)+(2,) is a valid NumPy broadcast) — kept as a
+  seed.
+- 6 edge-case goldens (295 total): stack-with-NA, pivot fill_value,
+  transform with NA, query precedence, resample all-NA bucket, np.take
+  with repeated indexes.
+
+### Docs
+- docs/fuzzing.md (targets, smoke/long commands, invariants checked,
+  corpus policy) and docs/benchmarking.md (how to run/compare, machine
+  notes, expected low-allocation ops, known boxed paths);
+  performance.md tables refreshed with measured v0.10.1 numbers.
+
+### Known limitations
+- Unstack and N-D NDArray.Take remain boxed; keepdims still planned.
+
 ## v0.10.0 - Reshape Depth and Pre-Release Candidate
 
 ### Added

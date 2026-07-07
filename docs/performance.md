@@ -38,11 +38,13 @@ BenchmarkPositionsFromMask100K           ~0.10 ms/op, 1 alloc
 BenchmarkDropNA100K                      ~0.91 ms/op, 44 allocs
 ```
 
-Reshape / groupby transform / query (v0.10, Apple M4, 100K rows):
+Reshape / groupby transform / query (v0.10, updated v0.10.1, Apple M4,
+100K rows):
 
 ```text
-BenchmarkStack100K                  ~26 ms/op   (boxed reshape, 200K cells — optimization target)
-BenchmarkUnstack100K                ~22 ms/op   (boxed reshape)
+BenchmarkStack100K                  ~13 ms/op, ~101K allocs (v0.10.1 typed interleave;
+                                     was ~26 ms / ~499K allocs boxed)
+BenchmarkUnstack100K                ~21 ms/op   (boxed reshape — still an optimization target)
 BenchmarkPivotTable100K             ~2.5 ms/op  (2 values x 2 aggs x 12 labels, typed groupby)
 BenchmarkGroupByTransformMean100K   ~1.0 ms/op, 62 allocs (broadcast typed gather)
 BenchmarkGroupByFilter100K          ~2.1 ms/op, 101 allocs
@@ -50,7 +52,9 @@ BenchmarkQueryArithmetic100K        ~0.54 ms/op, 60 allocs (columnar)
 BenchmarkQueryInList100K            ~1.0 ms/op, 54 allocs
 BenchmarkNDArrayIsIn100K            ~0.73 ms/op, 4 allocs
 BenchmarkNDArraySearchSorted100K    ~0.27 ms/op (100 queries, binary search)
-BenchmarkNDArrayTake100K            ~8.2 ms/op  (boxed path — optimization target)
+BenchmarkNDArrayTakeInt100K         ~0.27 ms/op, 6 allocs (v0.10.1 typed 1-D gather;
+BenchmarkNDArrayTakeFloat64100K     ~0.24 ms/op, 6 allocs  was ~8.2 ms / ~500K allocs)
+BenchmarkNDArrayTakeString100K      ~0.46 ms/op, 6 allocs
 ```
 
 Time series (v0.9, Apple M4, 100K rows, minute granularity over ~70
