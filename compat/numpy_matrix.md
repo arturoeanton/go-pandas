@@ -75,7 +75,8 @@ Since v0.3 arrays store real typed backings ([]bool, []int, []int64,
 | np.sort | a.Sort() | done | last axis, ascending |
 | np.argsort | a.ArgSort() | done | stable |
 | np.unique | pd.Unique(a) | done | sorted distinct |
-| np.searchsorted / np.isin | — | planned | |
+| np.isin | a.IsIn(values) | done | numeric/bool/string; NaN never matches (v0.10) |
+| np.searchsorted | a.SearchSorted(values, side) | done | 1-D numeric; sorted precondition documented (v0.10) |
 
 ## Linear algebra
 

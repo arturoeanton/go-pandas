@@ -269,6 +269,35 @@ docs/timeseries.md). Documented differences:
   aggregation calls, like GroupBy. The placeholder only ever returned
   ErrNotImplemented.
 
-## Stack / Unstack
+## Reshape, transform/filter and query (v0.10)
 
-`DataFrame.Stack` and `Unstack` return `ErrNotImplemented`.
+- **Stack keeps NA cells**, matching pandas' `future_stack=True` (v3
+  behavior); classic `df.stack()` drops them. Stack returns a Series
+  (the v0.1 placeholder returned `(*DataFrame, error)` and always
+  ErrNotImplemented).
+- **Unstack moves only the LAST MultiIndex level**, requires unique
+  (row, column) combinations (duplicates error — aggregate with
+  PivotTable), emits observed column labels only, and — with several
+  data columns — flattens names to `column_label` because go-pandas has
+  no MultiIndex columns.
+- **PivotTable** supports multiple values, multiple aggfuncs and a
+  multi-key index, but a single Columns key; output column names
+  flatten deterministically to value_agg_label (parts included only
+  when their dimension has several members) instead of pandas'
+  MultiIndex columns. Row/column labels sort like pandas.
+- **GroupBy.Transform** accepts any typed-reducer aggregation and
+  broadcasts with one typed gather; **GroupBy.Filter** covers group
+  size and non-NA count conditions (`GroupSize()`, `GroupCount(col)`)
+  — arbitrary per-group callbacks are not supported (use Apply).
+- **Query grammar** covers comparisons, and/or/not, parentheses,
+  arithmetic (+ - * / % with unary minus), in / not in with literal
+  lists, bool literals, `.str.contains/startswith/endswith`, bare bool
+  columns and datetime string comparisons (deterministic inference
+  layouts). It is not a Python eval: method calls, @variables and
+  backtick names are unsupported and error clearly. `in`/`not in` need
+  a plain column on the left.
+- **np.isin**: NaN never matches (NumPy parity); candidates normalize
+  numeric widths. **np.searchsorted**: 1-D numeric arrays, the sorted
+  precondition is documented and not checked (NumPy parity).
+  **NDArray.Take** errors on out-of-range indices (no negative
+  wrapping). keepdims reductions remain planned.

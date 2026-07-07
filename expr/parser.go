@@ -43,7 +43,7 @@ func tokenize(q string) []string {
 			}
 			tokens = append(tokens, q[i:min(j+1, len(q))])
 			i = j + 1
-		case strings.ContainsRune("()[],", rune(c)):
+		case strings.ContainsRune("()[],+-*/%", rune(c)):
 			tokens = append(tokens, string(c))
 			i++
 		case strings.ContainsRune("<>=!", rune(c)):
@@ -55,7 +55,7 @@ func tokenize(q string) []string {
 			i = j
 		default:
 			j := i
-			for j < len(q) && !unicode.IsSpace(rune(q[j])) && !strings.ContainsRune("()[],<>=!\"'", rune(q[j])) {
+			for j < len(q) && !unicode.IsSpace(rune(q[j])) && !strings.ContainsRune("()[],<>=!\"'+-*/%", rune(q[j])) {
 				j++
 			}
 			tokens = append(tokens, q[i:j])
@@ -132,62 +132,182 @@ func (p *parser) parseUnary() (Predicate, error) {
 		return Not(inner), nil
 	}
 	if p.peek() == "(" {
+		// "(" may open a predicate group ("(a > 1) and b") or an
+		// arithmetic group ("(a + b) > 1"): try the predicate first and
+		// backtrack when what follows the ")" is an operator (v0.10).
+		save := p.pos
 		p.next()
 		inner, err := p.parseOr()
-		if err != nil {
-			return nil, err
+		if err == nil && p.peek() == ")" {
+			p.pos++
+			if !isBinaryOpToken(p.peek()) {
+				return inner, nil
+			}
 		}
-		if p.next() != ")" {
-			return nil, fmt.Errorf("%w: expected ')'", errs.ErrInvalidOperation)
-		}
-		return inner, nil
+		p.pos = save
 	}
 	return p.parseComparison()
 }
 
+// isBinaryOpToken reports whether a token continues an arithmetic or
+// comparison expression.
+func isBinaryOpToken(tok string) bool {
+	switch tok {
+	case "+", "-", "*", "/", "%", "==", "=", "!=", ">", ">=", "<", "<=":
+		return true
+	}
+	return strings.EqualFold(tok, "in")
+}
+
 func (p *parser) parseComparison() (Predicate, error) {
-	colTok := p.next()
-	if colTok == "" {
-		return nil, fmt.Errorf("%w: expected column name", errs.ErrInvalidOperation)
+	// name.str.contains("x") / startswith / endswith
+	if strings.Contains(p.peek(), ".str.") {
+		return p.parseStrMethod(p.next())
 	}
-	// name.str.contains("x") / name.str.startswith("x") / name.str.endswith("x")
-	if strings.Contains(colTok, ".str.") {
-		return p.parseStrMethod(colTok)
+	left, leftCol, err := p.parseArith()
+	if err != nil {
+		return nil, err
 	}
-	col := Col(colTok)
+	next := p.peek()
 	// Bare boolean column: `active`, `not active`, `a and active`.
-	switch next := p.peek(); {
-	case next == "" || next == ")" || strings.EqualFold(next, "and") || strings.EqualFold(next, "or"):
-		return col.Eq(true), nil
+	if leftCol != nil {
+		switch {
+		case next == "" || next == ")" || strings.EqualFold(next, "and") || strings.EqualFold(next, "or"):
+			return leftCol.Eq(true), nil
+		}
 	}
-	op := p.next()
-	if strings.EqualFold(op, "in") {
+	// in / not in (v0.10) — require a plain column on the left.
+	negIn := strings.EqualFold(next, "not") && strings.EqualFold(p.peekAt(1), "in")
+	if negIn || strings.EqualFold(next, "in") {
+		if leftCol == nil {
+			return nil, fmt.Errorf("%w: 'in' needs a plain column on the left", errs.ErrInvalidOperation)
+		}
+		if negIn {
+			p.next() // not
+		}
+		p.next() // in
 		values, err := p.parseList()
 		if err != nil {
 			return nil, err
 		}
-		return col.IsIn(values...), nil
+		pred := leftCol.IsIn(values...)
+		if negIn {
+			pred = Not(pred)
+		}
+		return pred, nil
 	}
-	valTok := p.next()
-	val, err := parseValue(valTok)
+	op := p.next()
+	switch op {
+	case "=":
+		op = "=="
+	case "==", "!=", ">", ">=", "<", "<=":
+	case "":
+		return nil, fmt.Errorf("%w: expected comparison operator", errs.ErrInvalidOperation)
+	default:
+		return nil, fmt.Errorf("%w: unknown operator %q", errs.ErrInvalidOperation, op)
+	}
+	right, _, err := p.parseArith()
 	if err != nil {
 		return nil, err
 	}
-	switch op {
-	case "==", "=":
-		return col.Eq(val), nil
-	case "!=":
-		return col.Ne(val), nil
-	case ">":
-		return col.Gt(val), nil
-	case ">=":
-		return col.Ge(val), nil
-	case "<":
-		return col.Lt(val), nil
-	case "<=":
-		return col.Le(val), nil
+	return comparePred{left: left, right: right, op: op}, nil
+}
+
+func (p *parser) peekAt(ahead int) string {
+	if p.pos+ahead < len(p.tokens) {
+		return p.tokens[p.pos+ahead]
 	}
-	return nil, fmt.Errorf("%w: unknown operator %q", errs.ErrInvalidOperation, op)
+	return ""
+}
+
+// parseArith parses an arithmetic expression (v0.10):
+//
+//	sum    := term (('+'|'-') term)*
+//	term   := factor (('*'|'/'|'%') factor)*
+//	factor := '-' factor | '(' sum ')' | literal | column
+//
+// The second return is the ColumnExpr when the whole expression is one
+// bare column (used by bare-bool and in/not-in handling).
+func (p *parser) parseArith() (Expr, *ColumnExpr, error) {
+	left, leftCol, err := p.parseTerm()
+	if err != nil {
+		return nil, nil, err
+	}
+	for p.peek() == "+" || p.peek() == "-" {
+		op := p.next()
+		right, _, err := p.parseTerm()
+		if err != nil {
+			return nil, nil, err
+		}
+		left, leftCol = binaryExpr{left: left, right: right, op: op}, nil
+	}
+	return left, leftCol, nil
+}
+
+func (p *parser) parseTerm() (Expr, *ColumnExpr, error) {
+	left, leftCol, err := p.parseFactor()
+	if err != nil {
+		return nil, nil, err
+	}
+	for p.peek() == "*" || p.peek() == "/" || p.peek() == "%" {
+		op := p.next()
+		right, _, err := p.parseFactor()
+		if err != nil {
+			return nil, nil, err
+		}
+		left, leftCol = binaryExpr{left: left, right: right, op: op}, nil
+	}
+	return left, leftCol, nil
+}
+
+func (p *parser) parseFactor() (Expr, *ColumnExpr, error) {
+	tok := p.peek()
+	switch {
+	case tok == "":
+		return nil, nil, fmt.Errorf("%w: expected value or column", errs.ErrInvalidOperation)
+	case tok == "-":
+		p.next()
+		inner, _, err := p.parseFactor()
+		if err != nil {
+			return nil, nil, err
+		}
+		return binaryExpr{left: Lit(0), right: inner, op: "-"}, nil, nil
+	case tok == "(":
+		p.next()
+		inner, _, err := p.parseArith()
+		if err != nil {
+			return nil, nil, err
+		}
+		if p.next() != ")" {
+			return nil, nil, fmt.Errorf("%w: expected ')'", errs.ErrInvalidOperation)
+		}
+		return inner, nil, nil
+	}
+	p.next()
+	// Literals first: quoted strings, numbers, bools, NA. Identifiers
+	// that are not literal keywords fail parseValue and become columns.
+	if v, err := parseValue(tok); err == nil {
+		return Lit(v), nil, nil
+	}
+	if !isIdentifier(tok) {
+		return nil, nil, fmt.Errorf("%w: cannot parse %q", errs.ErrInvalidOperation, tok)
+	}
+	col := Col(tok)
+	return col, &col, nil
+}
+
+// isIdentifier reports whether a token looks like a column name.
+func isIdentifier(tok string) bool {
+	if tok == "" {
+		return false
+	}
+	for i, r := range tok {
+		if unicode.IsLetter(r) || r == '_' || (i > 0 && (unicode.IsDigit(r) || r == '.')) {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 // parseStrMethod handles `col.str.method("arg")` calls in queries.

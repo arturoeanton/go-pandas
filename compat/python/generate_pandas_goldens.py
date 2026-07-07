@@ -576,7 +576,65 @@ def timeseries_suite():
     write("timeseries.json", "pandas.timeseries", cases)
 
 
+def reshape_v10_suite():
+    df = pd.DataFrame({"a": [1.0, 2.0], "b": [3.0, 4.0]}, index=["x", "y"])
+    stacked = df.stack(future_stack=True)
+    mi = pd.DataFrame(
+        {"country": ["AR", "AR", "BR"], "city": ["BA", "CO", "SP"], "v": [1.0, 2.0, 3.0]},
+        columns=["country", "city", "v"]).set_index(["country", "city"])
+    sales = pd.DataFrame([
+        {"country": "AR", "month": "jan", "sales": 10.0, "qty": 1.0},
+        {"country": "AR", "month": "feb", "sales": 20.0, "qty": 2.0},
+        {"country": "BR", "month": "jan", "sales": 30.0, "qty": 3.0},
+        {"country": "AR", "month": "jan", "sales": 40.0, "qty": 4.0},
+    ], columns=["country", "month", "sales", "qty"])
+    people = pd.DataFrame([
+        {"country": "AR", "salary": 1000.0, "bonus": 300.0},
+        {"country": "AR", "salary": 2000.0, "bonus": 50.0},
+        {"country": "BR", "salary": 1500.0, "bonus": 100.0},
+        {"country": "CL", "salary": 800.0, "bonus": 500.0},
+        {"country": "AR", "salary": 800.0, "bonus": 100.0},
+    ], columns=["country", "salary", "bonus"])
+    pt = pd.pivot_table(sales, values=["sales", "qty"], index=["country"],
+                        columns=["month"], aggfunc=["sum", "mean"])
+    # Flatten to go-pandas' deterministic value_agg_label naming AND its
+    # column order (value, then agg, then sorted labels) for comparison.
+    flat = pt.copy()
+    flat.columns = [f"{v}_{a}_{m}" for (a, v, m) in pt.columns]
+    months = sorted(sales["month"].unique())
+    ordered = [f"{v}_{a}_{m}" for v in ["sales", "qty"] for a in ["sum", "mean"] for m in months]
+    flat = flat[ordered].reset_index()
+    cases = [
+        case("v10_stack_values", "df.stack(future_stack=True) row-major values",
+             ser_series(stacked.reset_index(drop=True))),
+        case("v10_stack_labels", "stack index tuples as strings",
+             ser_series(pd.Series([f"{a}|{b}" for a, b in stacked.index]))),
+        case("v10_unstack", "mi['v'].unstack() sorted axes, NA fill",
+             ser_frame(mi["v"].unstack().reset_index())),
+        case("v10_stack_multiindex", "set_index([c1,c2]).stack values",
+             ser_series(mi.stack(future_stack=True).reset_index(drop=True))),
+        case("v10_transform_mean", "groupby(country).salary.transform('mean')",
+             ser_series(people.groupby("country")["salary"].transform("mean"))),
+        case("v10_transform_sum", "groupby(country).salary.transform('sum')",
+             ser_series(people.groupby("country")["salary"].transform("sum"))),
+        case("v10_filter_size", "groupby(country).filter(len > 1)",
+             ser_frame(people.groupby("country").filter(lambda g: len(g) > 1))),
+        case("v10_query_arith", "query('salary + bonus > 1300')",
+             ser_frame(people.query("salary + bonus > 1300"))),
+        case("v10_query_in", "query('country in [AR, BR]')",
+             ser_frame(people.query("country in ['AR', 'BR']"))),
+        case("v10_query_not_in", "query('country not in [CL]')",
+             ser_frame(people.query("country not in ['CL']"))),
+        case("v10_query_parens", "query('(salary > 900 and bonus < 200) or country == \"CL\"')",
+             ser_frame(people.query("(salary > 900 and bonus < 200) or country == 'CL'"))),
+        case("v10_pivot_multi", "pivot_table 2 values x 2 aggs x columns",
+             ser_frame(flat)),
+    ]
+    write("reshape_v10.json", "pandas.reshape_v10", cases)
+
+
 def main():
+    reshape_v10_suite()
     timeseries_suite()
     multiindex_suite()
     categorical_suite()

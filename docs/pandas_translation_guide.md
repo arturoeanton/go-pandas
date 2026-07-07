@@ -192,6 +192,22 @@ s.dt.quarter            s.Dt().Quarter()
 pd.to_datetime(s)       pd.ToDatetime(s)
 ```
 
+## Reshape and group transforms (v0.10)
+
+```python
+df.stack()                                df.Stack()  // Series with MultiIndex; keeps NA
+s.unstack()                               pd.UnstackSeries(s)  // last level -> columns
+df.unstack()                              df.Unstack()
+pd.pivot_table(df, values=[v1, v2],       df.PivotTable(pd.PivotTableOptions{
+    index=[i], columns=[c],                   Values: []string{v1, v2}, Index: []string{i},
+    aggfunc=["sum", "mean"])                  Columns: []string{c}, AggFuncs: []string{"sum", "mean"}})
+df.groupby(k)[v].transform("mean")        df.GroupBy(k).Transform(v, "mean")
+df.groupby(k).filter(lambda g: len(g)>2)  df.GroupBy(k).Filter(pd.GroupSize().Gt(2))
+df.query("salary + bonus > 1000")         df.Query("salary + bonus > 1000")
+df.query("c not in ['CL']")               df.Query(`c not in ["CL"]`)
+df.query("date >= '2026-01-01'")          df.Query(`date >= "2026-01-01"`)
+```
+
 ## Time series (v0.9)
 
 ```python

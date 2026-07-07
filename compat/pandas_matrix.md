@@ -132,7 +132,8 @@ Differences in behavior are documented in [known_differences.md](known_differenc
 | gb.first()/last()/nunique() | gb.First/Last/NUnique | done | typed index-selector gather |
 | gb.agg({...}) | gb.Agg(map) / gb.AggList(map) | partial | column_agg naming, sorted column order |
 | gb.apply(fn) | gb.Apply(fn) | partial | |
-| gb.transform / gb.filter | — | planned | |
+| gb.transform("agg") | gb.Transform(column, agg) | done | broadcast typed gather; any reducer agg (v0.10) |
+| gb.filter(...) | gb.Filter(pd.GroupSize()/GroupCount(col) conds) | partial | size/count conditions; no arbitrary callbacks |
 
 ## Merge / join / concat
 
@@ -152,8 +153,12 @@ Differences in behavior are documented in [known_differences.md](known_differenc
 |---|---|---|---|
 | df.melt(...) | df.Melt(MeltOptions) | done | preserves row order |
 | df.pivot(...) | df.Pivot(PivotOptions) | done | sorted labels; duplicates error |
-| df.pivot_table(...) | df.PivotTable(PivotTableOptions) | partial | single index/columns/values |
-| df.stack()/unstack() | Stack()/Unstack() | not_supported | ErrNotImplemented |
+| df.pivot_table(...) | df.PivotTable(PivotTableOptions) | partial | multiple values/aggfuncs/multi-key index (v0.10); one Columns key; flat value_agg_label names |
+| df.stack() | df.Stack() | done | Series with MultiIndex; keeps NA (future_stack behavior) (v0.10) |
+| s.unstack() / df.unstack() | pd.UnstackSeries(s) / df.Unstack() | partial | last level only; duplicates error; flat col_label names for multi-column frames (v0.10) |
+| query arithmetic + - * / % | df.Query("salary + bonus > 1000") | done | parentheses, unary minus (v0.10) |
+| query in / not in | df.Query("c in [...] / c not in [...]") | done | string/numeric/bool lists (v0.10) |
+| query datetime strings | df.Query("date >= '2026-01-01'") | done | via deterministic inference layouts (v0.10) |
 | s.rolling(w, min_periods, center) | s.Rolling(w, MinPeriods/RollingCenter) | done | count/sum/mean/median/min/max/std/var |
 | df.rolling(...) | df.Rolling(w, ...) | done | numeric columns |
 | s.expanding()/df.expanding() | s.Expanding() / df.Expanding() | done | count/sum/mean/median/min/max/std/var |

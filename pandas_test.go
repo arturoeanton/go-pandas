@@ -55,8 +55,9 @@ func TestRootAPI(t *testing.T) {
 		t.Error("NA helpers broken")
 	}
 
-	if _, err := df.Stack(); !errors.Is(err, pd.ErrNotImplementedBase) {
-		t.Errorf("Stack should be ErrNotImplemented, got %v", err)
+	// v0.10: Stack is real and returns a MultiIndex Series.
+	if stacked, err := df.Stack(); err != nil || stacked.Len() == 0 {
+		t.Errorf("Stack = %v, err %v", stacked, err)
 	}
 	if !errors.Is(pd.ErrNotImplemented("X"), pd.ErrNotImplementedBase) {
 		t.Error("ErrNotImplemented does not wrap the base error")

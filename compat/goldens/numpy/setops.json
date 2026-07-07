@@ -1,0 +1,80 @@
+{
+ "suite": "numpy.setops",
+ "numpy_version": "2.0.2",
+ "cases": [
+  {
+   "name": "isin_numeric",
+   "operation": "np.isin(a, [2, 7, nan]) - NaN never matches",
+   "expected": {
+    "shape": [
+     5
+    ],
+    "bool_data": [
+     false,
+     true,
+     false,
+     true,
+     false
+    ]
+   }
+  },
+  {
+   "name": "isin_string",
+   "operation": "np.isin(strings, list)",
+   "expected": {
+    "shape": [
+     3
+    ],
+    "bool_data": [
+     false,
+     true,
+     false
+    ]
+   }
+  },
+  {
+   "name": "searchsorted_left",
+   "operation": "np.searchsorted(a, v, side='left')",
+   "expected": {
+    "shape": [
+     4
+    ],
+    "data": [
+     0.0,
+     1.0,
+     3.0,
+     5.0
+    ]
+   }
+  },
+  {
+   "name": "searchsorted_right",
+   "operation": "np.searchsorted(a, v, side='right')",
+   "expected": {
+    "shape": [
+     4
+    ],
+    "data": [
+     0.0,
+     3.0,
+     3.0,
+     5.0
+    ]
+   }
+  },
+  {
+   "name": "take_1d",
+   "operation": "np.take(a, [0, 2, 1])",
+   "expected": {
+    "shape": [
+     3
+    ],
+    "data": [
+     10.0,
+     30.0,
+     20.0
+    ]
+   }
+  }
+ ]
+}

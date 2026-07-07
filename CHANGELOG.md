@@ -1,5 +1,63 @@
 # Changelog
 
+## v0.10.0 - Reshape Depth and Pre-Release Candidate
+
+### Added
+- `df.Stack()` — columns pivot into an inner MultiIndex level,
+  returning a Series (row-major layout, NA cells KEPT like pandas'
+  future_stack; homogeneous columns stay typed). Migration note: the
+  v0.1 placeholder returned `(*DataFrame, error)` and always
+  ErrNotImplemented — Stack now returns `(*Series, error)`.
+- `pd.UnstackSeries(s)` / `df.Unstack()` — the last MultiIndex level
+  pivots into columns with pandas-sorted axes and NA fill; duplicate
+  (row, column) entries error (aggregate with PivotTable); multi-column
+  frames flatten names to column_label (no MultiIndex columns).
+- PivotTable depth: multiple values, multiple aggfuncs (`AggFuncs`),
+  multi-key index and a columns dimension on the typed groupby engine +
+  Unstack; deterministic flat value_agg_label naming; FillValue applies
+  to value columns; the historical 1x1x1 path is byte-compatible.
+  Multiple Columns keys return ErrNotImplemented (documented).
+- `GroupBy.Transform(column, agg)` — group aggregates broadcast back to
+  every row with one typed gather (input length/order/index preserved;
+  NA keys become NA; any typed-reducer aggregation works).
+- `GroupBy.Filter(cond)` with `pd.GroupSize()` / `pd.GroupCount(col)`
+  condition builders (Gt/Ge/Lt/Le/Eq/Ne) — whole groups kept or
+  dropped, row order and index preserved, typed gather.
+- Query grammar closure: arithmetic (+ - * / % with precedence, unary
+  minus, parentheses that disambiguate from predicate groups by
+  backtracking), `not in`, bool literals, and datetime string
+  comparisons against datetime columns (deterministic inference
+  layouts; also works in Where/sort via CompareValues). Clear syntax
+  errors; existing queries unchanged.
+- NumPy small gaps: `a.IsIn(values)` (numeric/bool/string, NaN never
+  matches) and `a.SearchSorted(values, side)` (1-D numeric, binary
+  search, documented sorted precondition). keepdims stays planned.
+- docs/prerelease.md (status, stability, philosophy, comparisons,
+  roadmap to v1.0); 17 new goldens (289 total; 12 pandas reshape/query
+  + 5 NumPy setops); 8 fuzz targets; 10 benchmarks.
+
+### Improved
+- README status section rewritten for pre-v1 framing; translation
+  guide and matrices extended; compatibility recount: pandas 93% of
+  134 tracked rows, NumPy 91% of 54 — larger surface, honest statuses.
+
+### Performance (Apple M4, 100K rows, measured)
+- PivotTable (2 values x 2 aggs x 12 labels) 2.5 ms; Transform mean
+  1.0 ms / 62 allocs; Filter 2.1 ms; query arithmetic 0.54 ms
+  (columnar); np.isin 0.73 ms / 4 allocs; searchsorted 0.27 ms.
+- Stack ~26 ms and Unstack ~22 ms are boxed reshapes (documented
+  optimization targets), as is NDArray.Take (~8 ms).
+
+### Compatibility
+- Stack keeps NA (future_stack semantics); unstack is last-level-only
+  with observed labels; pivot names flatten deterministically; filter
+  callbacks unsupported (use Apply); query is not a Python eval. All
+  documented in known_differences.md.
+
+### Known limitations
+- No MultiIndex columns; single Columns key in PivotTable; keepdims
+  planned; stack/unstack boxed path.
+
 ## v0.9.0 - to_datetime and Basic Resample
 
 ### Added

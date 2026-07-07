@@ -363,11 +363,12 @@ func TestReshape(t *testing.T) {
 	if v := colValues(t, pt, "x"); v[0] != 1.5 {
 		t.Errorf("pivot table = %v", v)
 	}
-	if _, err := df.Stack(); !errors.Is(err, errs.ErrNotImplementedBase) {
+	// v0.10: Stack is real; Unstack errors without a MultiIndex.
+	if _, err := df.Stack(); err != nil {
 		t.Errorf("Stack error = %v", err)
 	}
-	if _, err := df.Unstack(); !errors.Is(err, errs.ErrNotImplementedBase) {
-		t.Errorf("Unstack error = %v", err)
+	if _, err := df.Unstack(); !errors.Is(err, errs.ErrInvalidIndex) {
+		t.Errorf("Unstack without MultiIndex error = %v", err)
 	}
 	// v0.9: Resample is real; without a DatetimeIndex it errors at
 	// aggregation time.

@@ -8,12 +8,12 @@ implemented; `planned` and `not_supported` do not. Reproduce them with:
 go run ./cmd/compat-report
 ```
 
-Behavioral verification: 272 golden test cases generated from real
+Behavioral verification: 289 golden test cases generated from real
 pandas 2.3.3 / NumPy 2.0.2 (`compat/goldens/`), all passing. A matrix row
 can group several closely-related pandas/NumPy APIs, so these counts are
 rows tracked, not individual Python functions.
 
-## pandas compatibility (129 rows tracked, 118 implemented, 91%)
+## pandas compatibility (134 rows tracked, 125 implemented, 93%)
 
 | Area | Rows tracked | Implemented | Coverage |
 |---|---:|---:|---:|
@@ -23,9 +23,9 @@ rows tracked, not individual Python functions.
 | Missing values | 5 | 5 | 100% |
 | Series (incl. categorical v0.7, to_datetime v0.9) | 26 | 26 | 100% |
 | String and datetime accessors | 11 | 10 | 90% |
-| GroupBy | 7 | 6 | 85% |
+| GroupBy (incl. transform/filter, v0.10) | 8 | 8 | 100% |
 | Merge / join / concat | 7 | 7 | 100% |
-| Reshape and window (incl. resample, v0.9) | 16 | 11 | 68% |
+| Reshape and window (incl. stack/unstack + query, v0.10) | 20 | 16 | 80% |
 | IO | 10 | 9 | 90% |
 
 The tracked surface keeps growing with each phase (v0.8 MultiIndex,
@@ -37,16 +37,15 @@ land.
 Not implemented in the pandas area: timezone handling
 (`tz_localize`/`tz_convert`), resample closed/label/origin options and
 MultiIndex-level resample, MultiIndex level operations
-(swaplevel/droplevel/xs, merge on levels, label-range slicing),
-stack/unstack, eval, ewm, groupby transform/filter, Parquet/Excel/SQL
-IO.
+(swaplevel/droplevel/xs, merge on levels, label-range slicing), eval,
+ewm, Parquet/Excel/SQL IO.
 
-Note that "implemented" includes `partial` rows — 18 of the 118 pandas
+Note that "implemented" includes `partial` rows — 20 of the 125 pandas
 rows are partial (e.g. Query grammar subset, tuple-prefix-only
-MultiIndex selection, observed-buckets resample). See the matrix notes
-for each.
+MultiIndex selection, observed-buckets resample, last-level-only
+unstack). See the matrix notes for each.
 
-## NumPy compatibility (53 rows tracked, 47 implemented, 89%)
+## NumPy compatibility (54 rows tracked, 49 implemented, 91%)
 
 | Area | Rows tracked | Implemented | Coverage |
 |---|---:|---:|---:|
@@ -55,14 +54,20 @@ for each.
 | Indexing | 8 | 7 | 87% |
 | Math | 9 | 9 | 100% |
 | Reductions | 6 | 5 | 83% |
-| Sorting and set operations | 4 | 3 | 75% |
+| Sorting and set operations (incl. isin/searchsorted, v0.10) | 5 | 5 | 100% |
 | Linear algebra | 5 | 3 | 60% |
 | Random | 5 | 4 | 80% |
 
 Not implemented in the NumPy area: det/inv/solve/eig/SVD (planned via the
 gonum adapter), keepdims/axis tuples, fancy integer indexing, negative
-slice steps, searchsorted/isin, random distributions beyond
-rand/randn/randint.
+slice steps, random distributions beyond rand/randn/randint.
+
+**Reshape + query closure (v0.10):** Stack/Unstack over MultiIndex,
+pivot_table with multiple values/aggfuncs on the typed groupby engine,
+GroupBy Transform (broadcast typed gather) and Filter (size/count
+conditions), query grammar with arithmetic/parentheses/not in/datetime
+strings, np.isin/np.searchsorted. 17-case golden addition plus 8 fuzz
+targets.
 
 **Time series (v0.9):** format-aware ToDatetime (strftime directives,
 raise/coerce, deterministic inference, unix units), DatetimeIndex with

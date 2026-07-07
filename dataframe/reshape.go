@@ -3,6 +3,7 @@ package dataframe
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/arturoeanton/go-pandas/dtype"
 	"github.com/arturoeanton/go-pandas/errs"
@@ -91,23 +92,148 @@ func (df *DataFrame) Pivot(opts PivotOptions) (*DataFrame, error) {
 // PivotTableOptions mirrors pd.pivot_table (single value column and single
 // aggregation in v0.1).
 type PivotTableOptions struct {
-	Index     []string
-	Columns   []string
-	Values    []string
-	AggFunc   string
+	Index   []string
+	Columns []string
+	Values  []string
+	AggFunc string
+	// AggFuncs runs several aggregations at once (v0.10); when set it
+	// overrides AggFunc.
+	AggFuncs  []string
 	FillValue any
 }
 
-// PivotTable aggregates duplicate cells with AggFunc (default mean).
+// PivotTable aggregates duplicate cells (default mean). Since v0.10 it
+// supports multiple values, multiple aggfuncs, multi-key index and
+// (one) columns dimension, built on the typed GroupBy engine plus
+// Unstack. Output column names are deterministic (documented in
+// docs/reshape rules): parts joined with "_" in value, agg, label
+// order — the value part appears only with several values, the agg
+// part only with several aggfuncs, the label part only with a columns
+// dimension. The single value/agg/columns case keeps the historical
+// output shape (index keys as regular columns, label columns).
 func (df *DataFrame) PivotTable(opts PivotTableOptions) (*DataFrame, error) {
-	if len(opts.Index) != 1 || len(opts.Columns) != 1 || len(opts.Values) != 1 {
-		return nil, errs.NotImplemented("DataFrame.PivotTable with multiple index/columns/values")
+	aggs := opts.AggFuncs
+	if len(aggs) == 0 {
+		agg := opts.AggFunc
+		if agg == "" {
+			agg = "mean"
+		}
+		aggs = []string{agg}
 	}
-	agg := opts.AggFunc
-	if agg == "" {
-		agg = "mean"
+	if len(opts.Index) == 0 || len(opts.Values) == 0 {
+		return nil, fmt.Errorf("%w: PivotTable needs Index and Values", errs.ErrInvalidOperation)
 	}
-	return df.pivotWith(opts.Index[0], opts.Columns[0], opts.Values[0], agg, opts.FillValue)
+	if len(opts.Columns) > 1 {
+		return nil, errs.NotImplemented("DataFrame.PivotTable with multiple Columns keys")
+	}
+	// Historical fast path: 1 index x 1 columns x 1 value x 1 agg.
+	if len(opts.Index) == 1 && len(opts.Columns) == 1 && len(opts.Values) == 1 && len(aggs) == 1 {
+		return df.pivotWith(opts.Index[0], opts.Columns[0], opts.Values[0], aggs[0], opts.FillValue)
+	}
+	return df.pivotTableMulti(opts, aggs)
+}
+
+// pivotOutName applies the deterministic naming rule.
+func pivotOutName(value, agg, label string, manyValues, manyAggs, hasColumns bool) string {
+	var parts []string
+	if manyValues {
+		parts = append(parts, value)
+	}
+	if manyAggs {
+		parts = append(parts, agg)
+	}
+	if hasColumns {
+		parts = append(parts, label)
+	}
+	if len(parts) == 0 {
+		return value
+	}
+	return strings.Join(parts, "_")
+}
+
+// pivotTableMulti is the v0.10 engine: one typed groupby over
+// index+columns keys, then (with a columns dimension) one unstack per
+// value x agg output.
+func (df *DataFrame) pivotTableMulti(opts PivotTableOptions, aggs []string) (*DataFrame, error) {
+	manyValues := len(opts.Values) > 1
+	manyAggs := len(aggs) > 1
+	hasColumns := len(opts.Columns) == 1
+
+	keys := append(append([]string(nil), opts.Index...), opts.Columns...)
+	var specs []aggSpec
+	for _, v := range opts.Values {
+		for _, a := range aggs {
+			specs = append(specs, aggSpec{column: v, agg: a, outName: v + "\x00" + a})
+		}
+	}
+	flat, err := df.GroupBy(keys...).runAgg(specs)
+	if err != nil {
+		return nil, err
+	}
+
+	if !hasColumns {
+		// Index keys stay regular columns; rename aggregate outputs.
+		cols := make([]*series.Series, 0, len(flat.columns))
+		for _, c := range flat.columns {
+			name := c.Name()
+			if v, a, ok := strings.Cut(name, "\x00"); ok {
+				name = pivotOutName(v, a, "", manyValues, manyAggs, false)
+				c = c.Rename(name)
+			}
+			cols = append(cols, c)
+		}
+		return newFrame(cols, flat.index)
+	}
+
+	indexed, err := flat.SetIndex(keys...)
+	if err != nil {
+		return nil, err
+	}
+	var out *DataFrame
+	for _, spec := range specs {
+		s, err := indexed.Col(spec.outName)
+		if err != nil {
+			return nil, err
+		}
+		part, err := UnstackSeries(s)
+		if err != nil {
+			return nil, err
+		}
+		renamed := make([]*series.Series, len(part.columns))
+		for j, pc := range part.columns {
+			name := pivotOutName(spec.column, spec.agg, pc.Name(), manyValues, manyAggs, true)
+			renamed[j] = pc.Rename(name)
+		}
+		partFrame, err := newFrame(renamed, part.index)
+		if err != nil {
+			return nil, err
+		}
+		if out == nil {
+			out = partFrame
+			continue
+		}
+		if out, err = concatColumns([]*DataFrame{out, partFrame}); err != nil {
+			return nil, err
+		}
+	}
+	// Historical shape: index keys as regular columns + RangeIndex.
+	out = out.ResetIndex()
+	if opts.FillValue != nil {
+		isKey := make(map[string]bool, len(opts.Index))
+		for _, k := range opts.Index {
+			isKey[k] = true
+		}
+		cols := make([]*series.Series, len(out.columns))
+		for j, c := range out.columns {
+			if isKey[c.Name()] {
+				cols[j] = c
+				continue
+			}
+			cols[j] = c.FillNA(opts.FillValue)
+		}
+		return newFrame(cols, out.index)
+	}
+	return out, nil
 }
 
 // pivotWith implements pivot (agg == "": duplicates are an error) and
@@ -199,15 +325,9 @@ func sortAnyValues(values []any) {
 	})
 }
 
-// Stack is not implemented in v0.1.
-func (df *DataFrame) Stack() (*DataFrame, error) {
-	return nil, errs.NotImplemented("DataFrame.Stack")
-}
-
-// Unstack is not implemented in v0.1.
-func (df *DataFrame) Unstack() (*DataFrame, error) {
-	return nil, errs.NotImplemented("DataFrame.Unstack")
-}
+// Stack and Unstack live in stack.go (real engines since v0.10; the
+// v0.1 placeholders returned ErrNotImplemented — Stack now returns the
+// pandas-like Series).
 
 // Resample lives in resample.go (real engine since v0.9; the v0.1
 // placeholder returned ErrNotImplemented and a second error value —

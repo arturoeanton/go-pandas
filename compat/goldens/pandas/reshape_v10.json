@@ -1,0 +1,279 @@
+{
+ "suite": "pandas.reshape_v10",
+ "pandas_version": "2.3.3",
+ "cases": [
+  {
+   "name": "v10_stack_values",
+   "operation": "df.stack(future_stack=True) row-major values",
+   "expected": {
+    "values": [
+     1.0,
+     3.0,
+     2.0,
+     4.0
+    ]
+   }
+  },
+  {
+   "name": "v10_stack_labels",
+   "operation": "stack index tuples as strings",
+   "expected": {
+    "values": [
+     "x|a",
+     "x|b",
+     "y|a",
+     "y|b"
+    ]
+   }
+  },
+  {
+   "name": "v10_unstack",
+   "operation": "mi['v'].unstack() sorted axes, NA fill",
+   "expected": {
+    "columns": [
+     "country",
+     "BA",
+     "CO",
+     "SP"
+    ],
+    "rows": [
+     [
+      "AR",
+      1.0,
+      2.0,
+      null
+     ],
+     [
+      "BR",
+      null,
+      null,
+      3.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "v10_stack_multiindex",
+   "operation": "set_index([c1,c2]).stack values",
+   "expected": {
+    "values": [
+     1.0,
+     2.0,
+     3.0
+    ]
+   }
+  },
+  {
+   "name": "v10_transform_mean",
+   "operation": "groupby(country).salary.transform('mean')",
+   "expected": {
+    "values": [
+     1266.6666666666667,
+     1266.6666666666667,
+     1500.0,
+     800.0,
+     1266.6666666666667
+    ]
+   }
+  },
+  {
+   "name": "v10_transform_sum",
+   "operation": "groupby(country).salary.transform('sum')",
+   "expected": {
+    "values": [
+     3800.0,
+     3800.0,
+     1500.0,
+     800.0,
+     3800.0
+    ]
+   }
+  },
+  {
+   "name": "v10_filter_size",
+   "operation": "groupby(country).filter(len > 1)",
+   "expected": {
+    "columns": [
+     "country",
+     "salary",
+     "bonus"
+    ],
+    "rows": [
+     [
+      "AR",
+      1000.0,
+      300.0
+     ],
+     [
+      "AR",
+      2000.0,
+      50.0
+     ],
+     [
+      "AR",
+      800.0,
+      100.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "v10_query_arith",
+   "operation": "query('salary + bonus > 1300')",
+   "expected": {
+    "columns": [
+     "country",
+     "salary",
+     "bonus"
+    ],
+    "rows": [
+     [
+      "AR",
+      2000.0,
+      50.0
+     ],
+     [
+      "BR",
+      1500.0,
+      100.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "v10_query_in",
+   "operation": "query('country in [AR, BR]')",
+   "expected": {
+    "columns": [
+     "country",
+     "salary",
+     "bonus"
+    ],
+    "rows": [
+     [
+      "AR",
+      1000.0,
+      300.0
+     ],
+     [
+      "AR",
+      2000.0,
+      50.0
+     ],
+     [
+      "BR",
+      1500.0,
+      100.0
+     ],
+     [
+      "AR",
+      800.0,
+      100.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "v10_query_not_in",
+   "operation": "query('country not in [CL]')",
+   "expected": {
+    "columns": [
+     "country",
+     "salary",
+     "bonus"
+    ],
+    "rows": [
+     [
+      "AR",
+      1000.0,
+      300.0
+     ],
+     [
+      "AR",
+      2000.0,
+      50.0
+     ],
+     [
+      "BR",
+      1500.0,
+      100.0
+     ],
+     [
+      "AR",
+      800.0,
+      100.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "v10_query_parens",
+   "operation": "query('(salary > 900 and bonus < 200) or country == \"CL\"')",
+   "expected": {
+    "columns": [
+     "country",
+     "salary",
+     "bonus"
+    ],
+    "rows": [
+     [
+      "AR",
+      2000.0,
+      50.0
+     ],
+     [
+      "BR",
+      1500.0,
+      100.0
+     ],
+     [
+      "CL",
+      800.0,
+      500.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "v10_pivot_multi",
+   "operation": "pivot_table 2 values x 2 aggs x columns",
+   "expected": {
+    "columns": [
+     "country",
+     "sales_sum_feb",
+     "sales_sum_jan",
+     "sales_mean_feb",
+     "sales_mean_jan",
+     "qty_sum_feb",
+     "qty_sum_jan",
+     "qty_mean_feb",
+     "qty_mean_jan"
+    ],
+    "rows": [
+     [
+      "AR",
+      20.0,
+      50.0,
+      20.0,
+      25.0,
+      2.0,
+      5.0,
+      2.0,
+      2.5
+     ],
+     [
+      "BR",
+      null,
+      30.0,
+      null,
+      30.0,
+      null,
+      3.0,
+      null,
+      3.0
+     ]
+    ]
+   }
+  }
+ ]
+}

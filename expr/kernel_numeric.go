@@ -92,6 +92,22 @@ func evalCompareColumnar(node comparePred, ctx *EvalContext) (*Mask, error) {
 			return categoricalCompare(flipCompareOp(node.op), cc, left.scalar, ctx.Len)
 		}
 	}
+	// A string comparand against a datetime column parses through the
+	// deterministic inference list so the time kernel applies (v0.10).
+	if right.isScalar() && !left.isScalar() && left.col.DType() == dtype.Time {
+		if s, ok := right.scalar.(string); ok {
+			if t, ok := timeComparand(s); ok {
+				right.scalar = t
+			}
+		}
+	}
+	if left.isScalar() && !right.isScalar() && right.col.DType() == dtype.Time {
+		if s, ok := left.scalar.(string); ok {
+			if t, ok := timeComparand(s); ok {
+				left.scalar = t
+			}
+		}
+	}
 	lk, rk := kindOfValue(left), kindOfValue(right)
 	if lk != rk || lk == kindOther {
 		return nil, ErrNotColumnar

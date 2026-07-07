@@ -13,8 +13,12 @@
 go-pandas is a compatibility-oriented data toolkit: pandas-style
 `DataFrame`/`Series` and NumPy-style `NDArray` with the same concepts,
 names and behavior — verified against **golden outputs generated from
-real pandas and NumPy** (272 test cases, pandas 2.3 / NumPy 2.0).
+real pandas and NumPy** (289 test cases, pandas 2.3 / NumPy 2.0).
 
+Since v0.10, the **reshape surface is closed for common workflows**:
+`Stack`/`Unstack` over MultiIndex, `PivotTable` with multiple values
+and aggfuncs, `GroupBy` `Transform`/`Filter`, and a Query grammar with
+arithmetic, `in`/`not in` and datetime comparisons.
 Since v0.9, the common **time-series workflow works end to end**:
 format-aware `pd.ToDatetime` (strftime directives, raise/coerce), a
 real `DatetimeIndex` from `SetIndex`, and `df.Resample("D").Sum()` over
@@ -41,15 +45,18 @@ columns and CSV parsing infer typed columns, and arithmetic promotes
 dtypes NumPy-style (`int + float64 → float64`). Mixed data falls back to
 object storage — `StorageDType()` / `IsObjectBacked()` tell you which.
 
-## Stability status
+## Status
 
-go-pandas v0.9.x is **experimental**. The API is not yet v1 stable.
-Compatibility is conceptual and behavioral where tested, not Python
-syntax compatibility. Current coverage, computed from the matrices with
-`go run ./cmd/compat-report`: pandas 91% of 129 tracked rows, NumPy 89%
-of 53 tracked rows — including partial rows
+go-pandas is **pre-v1**. The API is still experimental, but the core
+DataFrame, Series, NDArray, GroupBy, Merge, Concat, Categorical,
+MultiIndex and time-series paths are golden-tested against real
+pandas/NumPy outputs. Compatibility is conceptual and behavioral where
+tested, not Python syntax compatibility. Current coverage, computed
+from the matrices with `go run ./cmd/compat-report`: pandas 93% of 134
+tracked rows, NumPy 91% of 54 tracked rows — including partial rows
 ([full report](compat/coverage_report.md), [what's intentionally
-different](compat/known_differences.md)).
+different](compat/known_differences.md), [prerelease
+status](docs/prerelease.md)).
 
 ## Installation
 
@@ -84,6 +91,9 @@ Zero dependencies outside the standard library.
 | `df.groupby(["a","b"], as_index=True)` | `df.GroupBy("a", "b").AsIndex(true)` |
 | `pd.to_datetime(s, format="%Y-%m-%d")` | `pd.ToDatetime(s, pd.WithDatetimeFormat("%Y-%m-%d"))` |
 | `df.resample("D").sum()` | `df.Resample("D").Sum()` |
+| `df.stack()` / `s.unstack()` | `df.Stack()` / `pd.UnstackSeries(s)` |
+| `df.groupby("k")["v"].transform("mean")` | `df.GroupBy("k").Transform("v", "mean")` |
+| `df.groupby("k").filter(lambda g: len(g) > 2)` | `df.GroupBy("k").Filter(pd.GroupSize().Gt(2))` |
 
 Full guide: [docs/pandas_translation_guide.md](docs/pandas_translation_guide.md)
 

@@ -1,6 +1,20 @@
 # Roadmap
 
-## v0.9 (this release) — to_datetime + basic Resample
+## v0.10 (this release) — reshape depth + prerelease candidate
+
+- Stack/Unstack over MultiIndex (future-stack NA semantics, duplicate
+  detection); PivotTable with multiple values/aggfuncs/multi-key index
+  on the typed groupby engine; GroupBy Transform (broadcast typed
+  gather) and Filter (GroupSize/GroupCount conditions); Query grammar
+  closure (arithmetic, parentheses, not in, datetime strings);
+  np.isin/np.searchsorted; docs/prerelease.md and full compatibility
+  audit (pandas 93% of 134 rows, NumPy 91% of 54).
+
+## v0.10.x — release-candidate hardening
+
+- API audit fixes, extended fuzz time, docs/example coverage.
+
+## v0.9 — to_datetime + basic Resample
 
 - Format-aware pd.ToDatetime: strftime directives (%Y %y %m %d %H %M
   %S .%f %z %%), raise/coerce error modes, deterministic inference

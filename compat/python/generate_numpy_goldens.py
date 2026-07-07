@@ -226,7 +226,26 @@ def dtypes_suite():
     write("dtypes.json", "numpy.dtypes", cases)
 
 
+def setops_v10():
+    a = np.array([1.0, 2.0, 3.0, 2.0, np.nan])
+    sorted_a = np.array([1.0, 2.0, 2.0, 4.0, 7.0])
+    cases = [
+        case("isin_numeric", "np.isin(a, [2, 7, nan]) - NaN never matches",
+             ser_bool(np.isin(a, [2.0, 7.0, np.nan]))),
+        case("isin_string", "np.isin(strings, list)",
+             ser_bool(np.isin(np.array(["a", "b", "c"]), ["b", "z"]))),
+        case("searchsorted_left", "np.searchsorted(a, v, side='left')",
+             ser_array(np.searchsorted(sorted_a, [0.0, 2.0, 3.0, 9.0], side="left").astype(float))),
+        case("searchsorted_right", "np.searchsorted(a, v, side='right')",
+             ser_array(np.searchsorted(sorted_a, [0.0, 2.0, 3.0, 9.0], side="right").astype(float))),
+        case("take_1d", "np.take(a, [0, 2, 1])",
+             ser_array(np.take(np.array([10.0, 20.0, 30.0]), [0, 2, 1]))),
+    ]
+    write("setops.json", "numpy.setops", cases)
+
+
 def main():
+    setops_v10()
     dtypes_suite()
     constructors()
     ndarray_core()

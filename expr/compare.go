@@ -36,7 +36,19 @@ func CompareValues(a, b any) (int, bool) {
 		return 0, false
 	}
 	if ta, ok := a.(time.Time); ok {
-		if tb, ok := b.(time.Time); ok {
+		if tb, ok := timeComparand(b); ok {
+			switch {
+			case ta.Before(tb):
+				return -1, true
+			case ta.After(tb):
+				return 1, true
+			}
+			return 0, true
+		}
+		return 0, false
+	}
+	if tb, ok := b.(time.Time); ok {
+		if ta, ok := timeComparand(a); ok {
 			switch {
 			case ta.Before(tb):
 				return -1, true
@@ -59,6 +71,24 @@ func CompareValues(a, b any) (int, bool) {
 		}
 	}
 	return 0, false
+}
+
+// timeComparand widens datetime comparisons: a time.Time passes
+// through, and a string parseable by the deterministic ToDatetime
+// inference list compares as its timestamp (v0.10) — so
+// `date >= "2026-01-01"` works in Query/Where like pandas.
+func timeComparand(v any) (time.Time, bool) {
+	switch x := v.(type) {
+	case time.Time:
+		return x, true
+	case string:
+		for _, layout := range dtype.InferTimeLayouts {
+			if t, err := time.Parse(layout, x); err == nil {
+				return t, true
+			}
+		}
+	}
+	return time.Time{}, false
 }
 
 // EqualValues reports loose equality across numeric widths, strings, bools
