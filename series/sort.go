@@ -8,11 +8,17 @@ import (
 	"github.com/arturoeanton/go-pandas/dtype"
 	"github.com/arturoeanton/go-pandas/expr"
 	"github.com/arturoeanton/go-pandas/index"
+	"github.com/arturoeanton/go-pandas/internal/column"
 )
 
 // SortValues returns the series sorted by value. Missing values go last,
-// like pandas. The sort is stable.
+// like pandas. The sort is stable. Categorical series sort by category
+// rank via a counting sort over codes — no comparisons at all.
 func (s *Series) SortValues(ascending bool) *Series {
+	if cc, ok := column.AsCategorical(s.col); ok {
+		out, _ := s.Take(catSortOrder(cc, ascending))
+		return out
+	}
 	pos := make([]int, s.Len())
 	for i := range pos {
 		pos[i] = i
@@ -22,6 +28,45 @@ func (s *Series) SortValues(ascending bool) *Series {
 	})
 	out, _ := s.Take(pos)
 	return out
+}
+
+// catSortOrder builds the stable row order of a categorical column by
+// category rank: an O(n + k) counting sort over codes, NA bucket last.
+func catSortOrder(cc *column.CategoricalColumn, ascending bool) []int {
+	codes, mask := cc.RawCodes()
+	k := cc.CategoryCount()
+	counts := make([]int, k+1) // trailing bucket: NA
+	for i, code := range codes {
+		if mask[i] {
+			counts[k]++
+			continue
+		}
+		counts[code]++
+	}
+	start := make([]int, k+1)
+	acc := 0
+	if ascending {
+		for c := 0; c < k; c++ {
+			start[c] = acc
+			acc += counts[c]
+		}
+	} else {
+		for c := k - 1; c >= 0; c-- {
+			start[c] = acc
+			acc += counts[c]
+		}
+	}
+	start[k] = acc // NA last regardless of direction
+	pos := make([]int, len(codes))
+	for i, code := range codes {
+		b := int(code)
+		if mask[i] {
+			b = k
+		}
+		pos[start[b]] = i
+		start[b]++
+	}
+	return pos
 }
 
 // lessAt orders two positions of a series, NA last regardless of order.
@@ -152,6 +197,9 @@ func (s *Series) ValueCounts(opts ...ValueCountOption) *Series {
 	for _, f := range opts {
 		f(&o)
 	}
+	if cc, ok := column.AsCategorical(s.col); ok {
+		return s.catValueCounts(cc, o)
+	}
 	counts := make(map[string]int)
 	var order []any
 	naCount := 0
@@ -194,6 +242,64 @@ func (s *Series) ValueCounts(opts ...ValueCountOption) *Series {
 		} else {
 			values[i] = counts[hashKey(v)]
 		}
+	}
+	name := "count"
+	if o.Normalize {
+		name = "proportion"
+	}
+	return NewSeries(name, values, WithIndex(index.NewStringIndex(labels, s.name)))
+}
+
+// catValueCounts counts a categorical series with one array pass over
+// codes — no hashing. Like pandas, every category appears in the result,
+// including zero-count ones; ties keep category order (stable sort).
+func (s *Series) catValueCounts(cc *column.CategoricalColumn, o ValueCountOptions) *Series {
+	codes, mask := cc.RawCodes()
+	counts := make([]int, cc.CategoryCount())
+	naCount := 0
+	for i, code := range codes {
+		if mask[i] {
+			naCount++
+			continue
+		}
+		counts[code]++
+	}
+	order := make([]int, len(counts))
+	for i := range order {
+		order[i] = i
+	}
+	sort.SliceStable(order, func(a, b int) bool {
+		if o.Ascending {
+			return counts[order[a]] < counts[order[b]]
+		}
+		return counts[order[a]] > counts[order[b]]
+	})
+	categories := cc.Categories()
+	total := len(codes)
+	denom := float64(total)
+	if o.DropNA {
+		denom = float64(total - naCount)
+	}
+	n := len(order)
+	withNA := !o.DropNA && naCount > 0
+	if withNA {
+		n++
+	}
+	labels := make([]string, 0, n)
+	values := make([]any, 0, n)
+	emit := func(label string, count int) {
+		labels = append(labels, label)
+		if o.Normalize {
+			values = append(values, float64(count)/denom)
+		} else {
+			values = append(values, count)
+		}
+	}
+	for _, c := range order {
+		emit(fmt.Sprint(categories[c]), counts[c])
+	}
+	if withNA {
+		emit("<NA>", naCount)
 	}
 	name := "count"
 	if o.Normalize {

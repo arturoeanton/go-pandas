@@ -162,10 +162,27 @@ produces NaN for non-overlapping labels.)
 `time.Time` values keep whatever location they carry; there is no
 tz-aware dtype, `tz_localize` or `tz_convert`.
 
-## Categorical
+## Categorical (v0.7)
 
-`category` parses as a dtype name but has no dedicated storage or
-accessor yet (v0.3).
+`pd.Category` has real typed storage (int32 codes + shared category
+list) with pandas semantics: sorted default categories, strict explicit
+categories, rank-based ordered comparisons, observed groupby, label-only
+writers. Documented differences:
+
+- **Concat with differing categories** stays categorical with the union
+  of the category lists (first-seen order), like
+  `pd.api.types.union_categoricals`; pandas' plain `concat` downgrades
+  to object. Identical ordered lists stay ordered; otherwise the result
+  is unordered.
+- **GroupBy emits observed groups only** (pandas `observed=True`);
+  unused categories do not appear as empty groups.
+- **`Series.Gt/Ge/Lt/Le` on unordered categoricals** return all-false
+  (there is no error channel on those methods); the `Cat()` accessor
+  comparisons and the expression engine (`Where`/`Query`) surface
+  `ErrInvalidOperation` instead, matching pandas' TypeError.
+- Categories are never inferred automatically — conversion requires
+  `Astype(pd.Category)`, a categorical constructor, or the
+  `pd.WithCategorical` CSV option.
 
 ## Random
 

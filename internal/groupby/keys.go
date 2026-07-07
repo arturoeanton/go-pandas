@@ -82,6 +82,7 @@ func singleKey(c column.Column, dropNA bool) *Plan {
 	}
 
 	switch {
+	case tryCategorical(c, ids, register, assignNA):
 	case tryStrings(c, ids, register, assignNA):
 	case tryBools(c, ids, register, assignNA):
 	case tryTimes(c, ids, register, assignNA):
@@ -90,6 +91,32 @@ func singleKey(c column.Column, dropNA bool) *Plan {
 		objectKey(c, ids, register, assignNA)
 	}
 	return &Plan{GroupIDs: ids, Count: len(first), FirstRow: first}
+}
+
+// tryCategorical is the v0.7 code fast path: category codes are already
+// dense ids, so a slot array replaces the hash map — one array index per
+// row instead of a map lookup on the label.
+func tryCategorical(c column.Column, ids []int, register func(int) int, assignNA func(int)) bool {
+	cc, ok := column.AsCategorical(c)
+	if !ok {
+		return false
+	}
+	codes, mask := cc.RawCodes()
+	slots := make([]int, cc.CategoryCount())
+	for i := range slots {
+		slots[i] = -1
+	}
+	for i, code := range codes {
+		if mask[i] {
+			assignNA(i)
+			continue
+		}
+		if slots[code] == -1 {
+			slots[code] = register(i)
+		}
+		ids[i] = slots[code]
+	}
+	return true
 }
 
 func tryStrings(c column.Column, ids []int, register func(int) int, assignNA func(int)) bool {

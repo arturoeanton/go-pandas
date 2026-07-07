@@ -24,6 +24,10 @@ func ConcatParts(parts []ConcatPart) Column {
 	for _, p := range parts {
 		total += p.Len
 	}
+	// Categorical parts union their categories and stack codes (v0.7).
+	if out, ok := tryConcatCategorical(parts, total); ok {
+		return out
+	}
 	// Same concrete dtype fast paths.
 	if out, ok := tryConcatSame[bool](parts, total); ok {
 		return out
@@ -62,6 +66,93 @@ func ConcatParts(parts []ConcatPart) Column {
 		values = append(values, p.Col.Values()...)
 	}
 	return Infer(values)
+}
+
+// tryConcatCategorical stacks categorical parts in code space: the
+// result keeps the categorical dtype with the union of the category
+// lists (first-seen order, like pandas' union_categoricals — plain
+// pd.concat would downgrade differing categories to object, a documented
+// difference). Ordered survives only when every part is ordered with an
+// identical category list.
+func tryConcatCategorical(parts []ConcatPart, total int) (Column, bool) {
+	cats := make([]*CategoricalColumn, len(parts))
+	present := false
+	for i, p := range parts {
+		if p.Col == nil {
+			continue
+		}
+		cc, ok := AsCategorical(p.Col)
+		if !ok {
+			return nil, false
+		}
+		cats[i] = cc
+		present = true
+	}
+	if !present {
+		return nil, false
+	}
+	lookup := make(map[any]int32)
+	var categories []any
+	ordered := true
+	for _, cc := range cats {
+		if cc == nil {
+			continue
+		}
+		if !cc.Ordered() {
+			ordered = false
+		}
+		for _, cat := range cc.Categories() {
+			if _, ok := lookup[cat]; !ok {
+				lookup[cat] = int32(len(categories))
+				categories = append(categories, cat)
+			}
+		}
+	}
+	if ordered {
+		for _, cc := range cats {
+			if cc == nil {
+				continue
+			}
+			pc := cc.Categories()
+			if len(pc) != len(categories) {
+				ordered = false
+				break
+			}
+			for i := range pc {
+				if pc[i] != categories[i] {
+					ordered = false
+					break
+				}
+			}
+		}
+	}
+	codes := make([]int32, 0, total)
+	mask := make([]bool, 0, total)
+	for pi, p := range parts {
+		if p.Col == nil {
+			for i := 0; i < p.Len; i++ {
+				codes = append(codes, -1)
+				mask = append(mask, true)
+			}
+			continue
+		}
+		cc := cats[pi]
+		remap := make([]int32, cc.CategoryCount())
+		for i, cat := range cc.Categories() {
+			remap[i] = lookup[cat]
+		}
+		pcodes, pmask := cc.RawCodes()
+		for i, code := range pcodes {
+			if pmask[i] {
+				codes = append(codes, -1)
+				mask = append(mask, true)
+				continue
+			}
+			codes = append(codes, remap[code])
+			mask = append(mask, false)
+		}
+	}
+	return NewCategorical(codes, categories, ordered, mask), true
 }
 
 // tryConcatSame appends parts when every present part is the same

@@ -81,6 +81,17 @@ func evalCompareColumnar(node comparePred, ctx *EvalContext) (*Mask, error) {
 	if right.isScalar() && dtype.IsNA(right.scalar) || left.isScalar() && dtype.IsNA(left.scalar) {
 		return newMask(ctx.Len), nil
 	}
+	// Categorical column vs scalar label: code kernel (v0.7).
+	if right.isScalar() && !left.isScalar() {
+		if cc, ok := column.AsCategorical(left.col); ok {
+			return categoricalCompare(node.op, cc, right.scalar, ctx.Len)
+		}
+	}
+	if left.isScalar() && !right.isScalar() {
+		if cc, ok := column.AsCategorical(right.col); ok {
+			return categoricalCompare(flipCompareOp(node.op), cc, left.scalar, ctx.Len)
+		}
+	}
 	lk, rk := kindOfValue(left), kindOfValue(right)
 	if lk != rk || lk == kindOther {
 		return nil, ErrNotColumnar

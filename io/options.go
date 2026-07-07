@@ -26,6 +26,10 @@ type CSVOptions struct {
 	// UseCols restricts parsing to the named columns, like
 	// read_csv(usecols=[...]).
 	UseCols []string
+	// Categorical marks columns to load with the categorical dtype,
+	// like read_csv(dtype={"col": "category"}). Categories are never
+	// inferred without this explicit opt-in.
+	Categorical []string
 }
 
 // DefaultCSVOptions returns the pandas-like defaults.
@@ -80,6 +84,11 @@ func WithNRows(n int) CSVOption { return WithLimit(n) }
 // WithUseCols restricts parsing to the named columns.
 func WithUseCols(columns ...string) CSVOption {
 	return func(o *CSVOptions) { o.UseCols = columns }
+}
+
+// WithCategorical marks columns to load with the categorical dtype.
+func WithCategorical(columns ...string) CSVOption {
+	return func(o *CSVOptions) { o.Categorical = columns }
 }
 
 // WithKeepDefaultNA appends the default NA strings to a custom

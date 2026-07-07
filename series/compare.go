@@ -51,10 +51,29 @@ func ordCmp(a, b any, ok func(c int) bool) bool {
 	return comparable && ok(c)
 }
 
+// catCompare intercepts scalar ordered comparisons on categorical
+// storage: ordered categoricals compare by category rank (not label
+// value); unordered categoricals are incomparable, so the uniform
+// incomparable-is-false rule applies. Cat() accessor comparisons and the
+// expr engine surface the explicit ErrInvalidOperation instead.
+func (s *Series) catCompare(v any, satisfied func(c int) bool) (*Series, bool) {
+	cc, ok := column.AsCategorical(s.col)
+	if !ok {
+		return nil, false
+	}
+	if !cc.Ordered() {
+		return s.allFalse(), true
+	}
+	return s.catOrderedCompare(cc, v, satisfied), true
+}
+
 // Gt returns s > v elementwise.
 func (s *Series) Gt(v any) *Series {
 	if o, ok := v.(*Series); ok {
 		return s.cmpSeries(o, func(a, b any) bool { return ordCmp(a, b, func(c int) bool { return c > 0 }) })
+	}
+	if out, ok := s.catCompare(v, func(c int) bool { return c > 0 }); ok {
+		return out
 	}
 	return s.cmp("gt", func(x any) bool { return ordCmp(x, v, func(c int) bool { return c > 0 }) })
 }
@@ -64,6 +83,9 @@ func (s *Series) Ge(v any) *Series {
 	if o, ok := v.(*Series); ok {
 		return s.cmpSeries(o, func(a, b any) bool { return ordCmp(a, b, func(c int) bool { return c >= 0 }) })
 	}
+	if out, ok := s.catCompare(v, func(c int) bool { return c >= 0 }); ok {
+		return out
+	}
 	return s.cmp("ge", func(x any) bool { return ordCmp(x, v, func(c int) bool { return c >= 0 }) })
 }
 
@@ -72,6 +94,9 @@ func (s *Series) Lt(v any) *Series {
 	if o, ok := v.(*Series); ok {
 		return s.cmpSeries(o, func(a, b any) bool { return ordCmp(a, b, func(c int) bool { return c < 0 }) })
 	}
+	if out, ok := s.catCompare(v, func(c int) bool { return c < 0 }); ok {
+		return out
+	}
 	return s.cmp("lt", func(x any) bool { return ordCmp(x, v, func(c int) bool { return c < 0 }) })
 }
 
@@ -79,6 +104,9 @@ func (s *Series) Lt(v any) *Series {
 func (s *Series) Le(v any) *Series {
 	if o, ok := v.(*Series); ok {
 		return s.cmpSeries(o, func(a, b any) bool { return ordCmp(a, b, func(c int) bool { return c <= 0 }) })
+	}
+	if out, ok := s.catCompare(v, func(c int) bool { return c <= 0 }); ok {
+		return out
 	}
 	return s.cmp("le", func(x any) bool { return ordCmp(x, v, func(c int) bool { return c <= 0 }) })
 }

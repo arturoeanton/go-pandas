@@ -8,12 +8,12 @@ implemented; `planned` and `not_supported` do not. Reproduce them with:
 go run ./cmd/compat-report
 ```
 
-Behavioral verification: 200+ golden test cases generated from real
+Behavioral verification: 255 golden test cases generated from real
 pandas 2.3.3 / NumPy 2.0.2 (`compat/goldens/`), all passing. A matrix row
 can group several closely-related pandas/NumPy APIs, so these counts are
 rows tracked, not individual Python functions.
 
-## pandas compatibility (100 rows tracked, 93 implemented, 93%)
+## pandas compatibility (109 rows tracked, 102 implemented, 94%)
 
 | Area | Rows tracked | Implemented | Coverage |
 |---|---:|---:|---:|
@@ -21,18 +21,18 @@ rows tracked, not individual Python functions.
 | Selection and indexing | 13 | 12 | 92% |
 | Mutation and transforms | 15 | 15 | 100% |
 | Missing values | 5 | 5 | 100% |
-| Series | 15 | 15 | 100% |
+| Series (incl. categorical, v0.7) | 24 | 24 | 100% |
 | String and datetime accessors | 11 | 10 | 90% |
 | GroupBy | 7 | 6 | 85% |
 | Merge / join / concat | 7 | 7 | 100% |
 | Reshape and window | 9 | 6 | 66% |
-| IO | 9 | 8 | 88% |
+| IO | 10 | 9 | 90% |
 
-Not implemented in the pandas area: MultiIndex operations, Categorical,
-timezone handling (`tz_localize`/`tz_convert`), resample, stack/unstack,
-eval, ewm, groupby transform/filter, Parquet/Excel/SQL IO.
+Not implemented in the pandas area: MultiIndex operations, timezone
+handling (`tz_localize`/`tz_convert`), resample, stack/unstack, eval,
+ewm, groupby transform/filter, Parquet/Excel/SQL IO.
 
-Note that "implemented" includes `partial` rows — 17 of the 91 pandas
+Note that "implemented" includes `partial` rows — 17 of the 102 pandas
 rows are partial (e.g. Query grammar subset, single-column SetIndex,
 PivotTable with one aggregation). See the matrix notes for each.
 
@@ -53,6 +53,12 @@ Not implemented in the NumPy area: det/inv/solve/eig/SVD (planned via the
 gonum adapter), keepdims/axis tuples, fancy integer indexing, negative
 slice steps, searchsorted/isin, random distributions beyond
 rand/randn/randint.
+
+**Categorical (v0.7):** `pd.Category` stores int32 codes into a shared
+category list; Astype both ways, Cat() accessor, rank-based ordered
+comparisons and code fast paths in groupby/merge/sort/value_counts/
+concat/expressions. Verified by a 12-case golden suite against pandas
+2.3.3 plus string-vs-categorical equivalence fuzzing.
 
 **Expressions (v0.4):** Where/AssignExpr/Query execute on the columnar
 engine for typed columns (10 expression golden cases mirror pandas

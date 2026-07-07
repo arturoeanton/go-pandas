@@ -1,5 +1,61 @@
 # Changelog
 
+## v0.7.0 - Typed Categorical Columns
+
+### Added
+- `pd.Category` with real typed storage: `CategoricalColumn` holds
+  int32 codes into a shared immutable category list plus the NA mask
+  (`codes[i] == -1` iff masked). Category labels must be hashable
+  scalars; categories are unique and never mutated in place.
+- Constructors: `pd.CategoricalSeries` (strings) and
+  `pd.NewCategoricalSeries` (boxed) with `pd.WithCategories(...)`
+  (explicit list, strict — out-of-list values error) and
+  `pd.WithOrdered(true)`. Default categories are the sorted distinct
+  labels, matching pandas' `astype("category")` codes exactly.
+- `Series.Astype(pd.Category)` and back (`Astype(pd.String)` restores
+  labels). `dtype.IsCategorical`; `ParseDType` accepts "categorical".
+- `Series.Cat()` accessor: `Categories`, `Codes`, `Ordered`,
+  `RenameCategories`, `ReorderCategories`, `SetCategories` (removed
+  categories become NA), `AddCategories`, `RemoveCategories`, and
+  checked ordered comparisons `Gt/Ge/Lt/Le`.
+- Ordered comparisons by category rank: `Series.Gt/Ge/Lt/Le` and the
+  expression engine (`pd.Col("size").Gt("m")`) compare codes; on
+  unordered categoricals the accessor and expr kernels return
+  `ErrInvalidOperation` (Series methods return all-false — no error
+  channel). `Eq`/`Ne`/`IsIn` always work.
+- `pd.WithCategorical("col", ...)` CSV option — the
+  `read_csv(dtype={"col": "category"})` equivalent. CSV/JSON writers
+  emit labels, never codes; round-trips preserve the dtype.
+- Category-aware engines, all on codes:
+  - GroupBy: codes are dense group ids — slot array instead of a hash
+    map; groups sort by category rank.
+  - Merge: shared id space from codes (cat↔cat via category remap,
+    cat↔string via seeded label map); outer-merge key columns stay
+    categorical through code-space coalesce with category union.
+  - Sort: stable O(n+k) counting sort over codes, NA last.
+  - ValueCounts: one array pass; includes zero-count categories and
+    breaks ties in category order, like pandas.
+  - Concat: code stacking with category-list union (see known
+    differences); ordered survives identical ordered lists.
+- docs/categorical.md; 12-case categorical golden suite generated from
+  pandas 2.3.3 (goldens total: 255); 5 fuzz targets including
+  string-vs-categorical engine equivalence for groupby/merge/sort/
+  concat; benchmark suite with memory comparison.
+
+### Performance (Apple M4, 8 categories, measured)
+- GroupBy mean 500K rows: 4.5 ms → **1.3 ms** (3.4x).
+- SortValues 500K rows: 119 ms → **1.3 ms** (91x).
+- ValueCounts 500K rows: 34 ms → **0.25 ms** (134x).
+- Merge inner 200K rows: 3.8 ms → **1.8 ms** (2.1x).
+- Column storage 500K rows: 8.5 MB → **2.5 MB** (3.4x smaller).
+
+### Compatibility
+- Categories are never inferred automatically — explicit opt-in only.
+- Differences vs pandas documented in known_differences.md: concat
+  unions differing category lists (pandas downgrades to object),
+  groupby is observed-only, Series-level unordered comparisons return
+  all-false instead of raising.
+
 ## v0.6.1 - Typed Concat and Stability Audit
 
 ### Added

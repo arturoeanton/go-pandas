@@ -13,9 +13,12 @@
 go-pandas is a compatibility-oriented data toolkit: pandas-style
 `DataFrame`/`Series` and NumPy-style `NDArray` with the same concepts,
 names and behavior — verified against **golden outputs generated from
-real pandas and NumPy** (243 test cases, pandas 2.3 / NumPy 2.0).
+real pandas and NumPy** (255 test cases, pandas 2.3 / NumPy 2.0).
 
-Since v0.6, `Merge`/`Join` run on a **typed hash-join engine** (a 100K
+Since v0.7, `pd.Category` is a **typed categorical dtype**: int32 codes
+into a shared category list, with code fast paths everywhere — sorting a
+500K-row categorical is ~91x faster than strings, value_counts ~134x,
+group-means ~3.4x, and the storage is ~3.4x smaller. Since v0.6, `Merge`/`Join` run on a **typed hash-join engine** (a 100K
 x 10K int-key merge takes ~2 ms with ~180 allocations, ~8x faster than
 v0.5). Since v0.5, `GroupBy` runs on a **typed engine** (typed key maps +
 segment reducers — a 100K-row group-mean takes ~0.9 ms with 70
@@ -30,10 +33,10 @@ object storage — `StorageDType()` / `IsObjectBacked()` tell you which.
 
 ## Stability status
 
-go-pandas v0.4.x is **experimental**. The API is not yet v1 stable.
+go-pandas v0.7.x is **experimental**. The API is not yet v1 stable.
 Compatibility is conceptual and behavioral where tested, not Python
 syntax compatibility. Current coverage, computed from the matrices with
-`go run ./cmd/compat-report`: pandas 93% of 100 tracked rows, NumPy 89%
+`go run ./cmd/compat-report`: pandas 94% of 109 tracked rows, NumPy 89%
 of 53 tracked rows — including partial rows
 ([full report](compat/coverage_report.md), [what's intentionally
 different](compat/known_differences.md)).
@@ -65,6 +68,7 @@ Zero dependencies outside the standard library.
 | `df.dropna(thresh=2)` | `df.DropNA(pd.DropNAThresh(2))` |
 | `s.rank(method="dense")` | `s.Rank(pd.RankMethod("dense"))` |
 | `s.dt.quarter` / `s.str.match(p)` | `s.Dt().Quarter()` / `s.Str().Match(p)` |
+| `s.astype("category")` / `s.cat.codes` | `s.Astype(pd.Category)` / `s.Cat().Codes()` |
 
 Full guide: [docs/pandas_translation_guide.md](docs/pandas_translation_guide.md)
 
@@ -112,6 +116,13 @@ ranks, _ := s.Rank(pd.RankMethod("dense"))
 change, _ := s.PctChange(1)
 running, _ := s.Cumsum()
 counts := s.ValueCounts()
+
+// Categorical (v0.7): int32 codes, ordered rank comparisons
+size, _ := pd.CategoricalSeries("size", []string{"m", "s", "l"},
+    pd.WithCategories("s", "m", "l"), pd.WithOrdered(true))
+big := size.Gt("s")            // by category rank: [true false true]
+cat, _ := size.Cat()           // .Categories() .Codes() .Rename...
+_, _ = big, cat
 ```
 
 ## NumPy-like NDArray examples
@@ -213,9 +224,9 @@ go test ./benchmarks/ -bench=. -benchmem
 
 ## Roadmap
 
-[docs/roadmap.md](docs/roadmap.md) — v0.5 pandas depth (MultiIndex,
-categorical, resample), v0.6 performance backends (typed index gather,
-Arrow, gonum), v1.0 stable API.
+[docs/roadmap.md](docs/roadmap.md) — pandas depth next (MultiIndex,
+resample, timezones), then performance backends (Arrow, gonum, SIMD),
+v1.0 stable API.
 
 ## Development
 

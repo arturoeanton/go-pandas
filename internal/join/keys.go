@@ -42,6 +42,20 @@ func (r *register) next() int {
 // matching.
 func pairIDsSingle(l, r column.Column) ([]int, []int, int) {
 	reg := &register{}
+	if lc, ok := column.AsCategorical(l); ok {
+		if rc, ok := column.AsCategorical(r); ok {
+			return pairCategorical(lc, rc)
+		}
+		if rs, rm, ok := column.Strings(r); ok {
+			lids, rids, n := pairCategoricalStrings(lc, rs, rm)
+			return lids, rids, n
+		}
+	} else if rc, ok := column.AsCategorical(r); ok {
+		if ls, lm, ok := column.Strings(l); ok {
+			rids, lids, n := pairCategoricalStrings(rc, ls, lm)
+			return lids, rids, n
+		}
+	}
 	if ls, lm, ok := column.Strings(l); ok {
 		if rs, rm, ok := column.Strings(r); ok {
 			seen := make(map[string]int)
@@ -91,6 +105,70 @@ func pairIDsSingle(l, r column.Column) ([]int, []int, int) {
 		return lookup(seen, key(r, i), reg)
 	})
 	return lids, rids, reg.n
+}
+
+// pairCategorical joins two categorical keys entirely on codes (v0.7):
+// the shared id space is the left code space extended by right-only
+// categories, so per-row work is one array index — the only map is over
+// the (small) category lists.
+func pairCategorical(l, r *column.CategoricalColumn) ([]int, []int, int) {
+	lcodes, lmask := l.RawCodes()
+	lids := make([]int, len(lcodes))
+	for i, code := range lcodes {
+		if lmask[i] {
+			lids[i] = -1
+			continue
+		}
+		lids[i] = int(code)
+	}
+	byLabel := make(map[any]int, l.CategoryCount())
+	for id, cat := range l.Categories() {
+		byLabel[cat] = id
+	}
+	n := l.CategoryCount()
+	remap := make([]int, r.CategoryCount())
+	for i, cat := range r.Categories() {
+		if id, ok := byLabel[cat]; ok {
+			remap[i] = id
+			continue
+		}
+		remap[i] = n
+		n++
+	}
+	rcodes, rmask := r.RawCodes()
+	rids := make([]int, len(rcodes))
+	for i, code := range rcodes {
+		if rmask[i] {
+			rids[i] = -1
+			continue
+		}
+		rids[i] = remap[code]
+	}
+	return lids, rids, n
+}
+
+// pairCategoricalStrings joins a categorical key against a plain string
+// key: the categorical side reuses its codes as ids; the string side
+// probes a label map seeded with the string categories.
+func pairCategoricalStrings(cat *column.CategoricalColumn, s []string, sm []bool) ([]int, []int, int) {
+	codes, mask := cat.RawCodes()
+	cids := make([]int, len(codes))
+	for i, code := range codes {
+		if mask[i] {
+			cids[i] = -1
+			continue
+		}
+		cids[i] = int(code)
+	}
+	seen := make(map[string]int, cat.CategoryCount())
+	for id, label := range cat.Categories() {
+		if str, ok := label.(string); ok {
+			seen[str] = id
+		}
+	}
+	reg := &register{n: cat.CategoryCount()}
+	sids := idsOver(len(s), sm, func(i int) int { return lookup(seen, s[i], reg) })
+	return cids, sids, reg.n
 }
 
 func bothNumeric(l, r column.Column) bool {

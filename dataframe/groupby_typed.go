@@ -33,9 +33,31 @@ func (gb *GroupBy) buildPlan() (*groupPlan, error) {
 		order[i] = i
 	}
 	if gb.sort {
+		// Categorical keys order groups by category rank on raw codes;
+		// other keys compare boxed labels (v0.7).
+		cmps := make([]func(a, b int) (int, bool), len(keyCols))
+		for k, kc := range keyCols {
+			if cc, ok := column.AsCategorical(kc); ok {
+				codes, _ := cc.RawCodes()
+				cmps[k] = func(a, b int) (int, bool) {
+					switch {
+					case codes[a] < codes[b]:
+						return -1, true
+					case codes[a] > codes[b]:
+						return 1, true
+					}
+					return 0, true
+				}
+				continue
+			}
+			kc := kc
+			cmps[k] = func(a, b int) (int, bool) {
+				return expr.CompareValues(kc.Value(a), kc.Value(b))
+			}
+		}
 		sort.SliceStable(order, func(x, y int) bool {
 			ra, rb := plan.FirstRow[order[x]], plan.FirstRow[order[y]]
-			for _, kc := range keyCols {
+			for k, kc := range keyCols {
 				aNA, bNA := kc.IsNA(ra), kc.IsNA(rb)
 				if aNA || bNA {
 					if aNA && bNA {
@@ -43,7 +65,7 @@ func (gb *GroupBy) buildPlan() (*groupPlan, error) {
 					}
 					return bNA // NA groups sort last
 				}
-				c, ok := expr.CompareValues(kc.Value(ra), kc.Value(rb))
+				c, ok := cmps[k](ra, rb)
 				if !ok || c == 0 {
 					continue
 				}

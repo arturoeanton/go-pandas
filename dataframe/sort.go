@@ -7,6 +7,7 @@ import (
 	"github.com/arturoeanton/go-pandas/dtype"
 	"github.com/arturoeanton/go-pandas/errs"
 	"github.com/arturoeanton/go-pandas/expr"
+	"github.com/arturoeanton/go-pandas/internal/column"
 )
 
 // SortValues sorts rows by one column; missing values go last. Stable.
@@ -22,29 +23,54 @@ func (df *DataFrame) SortValuesBy(columns []string, ascending []bool) (*DataFram
 	if len(ascending) != len(columns) {
 		return nil, fmt.Errorf("%w: %d columns but %d directions", errs.ErrLengthMismatch, len(columns), len(ascending))
 	}
-	keyCols := make([][]any, len(columns))
+	type sortKey struct {
+		na  func(i int) bool
+		cmp func(a, b int) (int, bool)
+	}
+	keys := make([]sortKey, len(columns))
 	for k, name := range columns {
 		c, err := df.Col(name)
 		if err != nil {
 			return nil, err
 		}
-		keyCols[k] = c.Values()
+		if cc, ok := column.AsCategorical(c.Storage()); ok {
+			// Categorical keys order by category rank on raw codes —
+			// no boxing, no value comparisons (v0.7).
+			codes, mask := cc.RawCodes()
+			keys[k] = sortKey{
+				na: func(i int) bool { return mask[i] },
+				cmp: func(a, b int) (int, bool) {
+					switch {
+					case codes[a] < codes[b]:
+						return -1, true
+					case codes[a] > codes[b]:
+						return 1, true
+					}
+					return 0, true
+				},
+			}
+			continue
+		}
+		vals := c.Values()
+		keys[k] = sortKey{
+			na:  func(i int) bool { return dtype.IsNA(vals[i]) },
+			cmp: func(a, b int) (int, bool) { return expr.CompareValues(vals[a], vals[b]) },
+		}
 	}
 	pos := make([]int, df.Len())
 	for i := range pos {
 		pos[i] = i
 	}
 	sort.SliceStable(pos, func(a, b int) bool {
-		for k := range columns {
-			va, vb := keyCols[k][pos[a]], keyCols[k][pos[b]]
-			naA, naB := dtype.IsNA(va), dtype.IsNA(vb)
+		for k := range keys {
+			naA, naB := keys[k].na(pos[a]), keys[k].na(pos[b])
 			if naA || naB {
 				if naA && naB {
 					continue
 				}
 				return naB // NA always last
 			}
-			c, ok := expr.CompareValues(va, vb)
+			c, ok := keys[k].cmp(pos[a], pos[b])
 			if !ok || c == 0 {
 				continue
 			}

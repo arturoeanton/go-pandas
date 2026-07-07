@@ -70,6 +70,14 @@ Differences in behavior are documented in [known_differences.md](known_differenc
 | pandas API | go-pandas API | Status | Notes |
 |---|---|---|---|
 | s.astype(...) | s.Astype(dt) | done | pd.ParseDType for names |
+| s.astype("category") | s.Astype(pd.Category) | done | typed int32 codes; sorted default categories (v0.7) |
+| pd.Categorical(...) / CategoricalDtype | pd.CategoricalSeries / NewCategoricalSeries + WithCategories/WithOrdered | done | explicit categories are strict |
+| s.cat.categories / codes / ordered | s.Cat().Categories()/Codes()/Ordered() | done | |
+| s.cat.rename_categories | s.Cat().RenameCategories(map) | done | keeps codes |
+| s.cat.reorder_categories | s.Cat().ReorderCategories(list, ordered) | done | must keep the set |
+| s.cat.set_categories | s.Cat().SetCategories(list, ordered) | done | removed categories become NA |
+| s.cat.add_categories / remove_categories | s.Cat().AddCategories / RemoveCategories | done | |
+| ordered comparisons (s > 'm') | s.Gt / s.Cat().Gt / expr Col().Gt | done | by category rank; unordered -> ErrInvalidOperation (accessor/expr) |
 | s.unique()/nunique() | s.Unique() / s.NUnique(dropNA) | done | |
 | s.value_counts() | s.ValueCounts(...) | done | returns Series |
 | s.sort_values()/sort_index() | s.SortValues(asc)/s.SortIndex(asc) | done | |
@@ -147,6 +155,7 @@ Differences in behavior are documented in [known_differences.md](known_differenc
 | na_values / keep_default_na | WithNAValues / WithKeepDefaultNA | done | |
 | parse_dates / date_format | WithParseDates / WithDateFormat | done | |
 | usecols / nrows | WithUseCols / WithNRows | done | |
+| dtype={"col": "category"} | pd.WithCategorical("col", ...) | done | writers emit labels, never codes (v0.7) |
 | df.to_csv | df.ToCSV / df.WriteCSV | done | |
 | pd.read_json orient=records/split/columns/values | pd.ReadJSON + pd.JSONOrient | done | |
 | df.to_json | df.ToJSON | done | all four orientations |

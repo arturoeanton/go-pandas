@@ -464,7 +464,33 @@ def merge_extra_suite():
     write("merge_extra.json", "pandas.merge_extra", cases)
 
 
+def categorical_suite():
+    s = pd.Series(["m", "s", "l", "m", None, "s"]).astype("category")
+    ordered = pd.Series(["m", "s", "l", "m", "s"], dtype=pd.CategoricalDtype(["s", "m", "l"], ordered=True))
+    explicit = pd.Series(["b", "a", "b", "c"], dtype=pd.CategoricalDtype(["c", "b", "a"]))
+    df = pd.DataFrame({"size": ordered, "price": [5.0, 1.0, 10.0, 6.0, 2.0]}, columns=["size", "price"])
+    left = pd.DataFrame({"size": pd.Series(["m", "s", "l", "m", "s"], dtype="category"), "price": [5.0, 1.0, 10.0, 6.0, 2.0]}, columns=["size", "price"])
+    right = pd.DataFrame({"size": pd.Series(["s", "m", "l"], dtype="category"), "label": ["small", "medium", "large"]}, columns=["size", "label"])
+    csv_back = pd.read_csv(io.StringIO(left.to_csv(index=False)), dtype={"size": "category"})
+    cases = [
+        case("cat_codes_default", "s.astype('category').cat.codes", ser_series(pd.Series([int(c) for c in s.cat.codes]))),
+        case("cat_categories_default", "s.astype('category').cat.categories (sorted)", ser_series(pd.Series(list(s.cat.categories)))),
+        case("cat_ordered_gt", "ordered categorical s > 'm'", ser_series(ordered > "m")),
+        case("cat_ordered_le", "ordered categorical s <= 'm'", ser_series(ordered <= "m")),
+        case("cat_value_counts", "ordered.value_counts() — ties keep category order", ser_series(ordered.value_counts(), with_index=True)),
+        case("cat_value_counts_explicit", "explicit-category value_counts includes tie order", ser_series(explicit.value_counts(), with_index=True)),
+        case("cat_sort_values", "ordered.sort_values() sorts by category rank", ser_series(ordered.sort_values().reset_index(drop=True))),
+        case("cat_groupby_mean", "df.groupby(categorical, observed=True).mean() in category order", ser_frame(df.groupby("size", observed=True)["price"].mean().reset_index())),
+        case("cat_rename_categories", "s.cat.rename_categories({'s': 'small'})", ser_series(ordered.cat.rename_categories({"s": "small"}).astype(str))),
+        case("cat_set_categories_na", "s.cat.set_categories(['m','l']) — removed become NA", ser_series(ordered.cat.set_categories(["m", "l"]))),
+        case("cat_merge_inner", "merge on categorical key keeps left row order", ser_frame(left.merge(right, on="size", how="inner"))),
+        case("cat_csv_roundtrip", "to_csv writes labels; read_csv(dtype='category') round-trips", ser_frame(csv_back)),
+    ]
+    write("categorical.json", "pandas.categorical", cases)
+
+
 def main():
+    categorical_suite()
     dtypes_suite()
     expressions_suite()
     merge_extra_suite()

@@ -91,6 +91,7 @@ var parseAliases = map[string]DType{
 	"timedelta64":     Timedelta,
 	"timedelta64[ns]": Timedelta,
 	"category":        Category,
+	"categorical":     Category,
 	"object":          Object,
 	"o":               Object,
 	"number":          Number,
@@ -111,6 +112,9 @@ func ParseDType(name string) (DType, error) {
 	}
 	return Invalid, fmt.Errorf("%w: unknown dtype %q", errs.ErrInvalidDType, name)
 }
+
+// IsCategorical reports whether a dtype is the categorical dtype.
+func IsCategorical(t DType) bool { return t == Category }
 
 // Matches reports whether a concrete dtype satisfies a selector dtype
 // (which may be the Number pseudo-dtype).

@@ -71,6 +71,13 @@ func empty(dt dtype.DType, capacity int) Column {
 // Values that cannot be converted downgrade the column to Object (the
 // documented mixed-value fallback); NA-like values become masked slots.
 func FromAny(values []any, dt dtype.DType) Column {
+	if dt == dtype.Category {
+		cat, err := Factorize(values, nil, false)
+		if err != nil {
+			return buildObject(values)
+		}
+		return cat
+	}
 	col := empty(dt, len(values))
 	for _, v := range values {
 		if err := col.AppendValue(v); err != nil {

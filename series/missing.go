@@ -73,6 +73,9 @@ func (s *Series) FillNA(v any) *Series {
 // Astype converts every value to the target dtype, changing the real
 // storage type (v0.3).
 func (s *Series) Astype(dt dtype.DType) (*Series, error) {
+	if dt == dtype.Category {
+		return s.asCategorical()
+	}
 	values := make([]any, s.Len())
 	for i := 0; i < s.Len(); i++ {
 		if s.col.IsNA(i) {

@@ -1,0 +1,222 @@
+{
+ "suite": "pandas.categorical",
+ "pandas_version": "2.3.3",
+ "cases": [
+  {
+   "name": "cat_codes_default",
+   "operation": "s.astype('category').cat.codes",
+   "expected": {
+    "values": [
+     1,
+     2,
+     0,
+     1,
+     -1,
+     2
+    ]
+   }
+  },
+  {
+   "name": "cat_categories_default",
+   "operation": "s.astype('category').cat.categories (sorted)",
+   "expected": {
+    "values": [
+     "l",
+     "m",
+     "s"
+    ]
+   }
+  },
+  {
+   "name": "cat_ordered_gt",
+   "operation": "ordered categorical s > 'm'",
+   "expected": {
+    "values": [
+     false,
+     false,
+     true,
+     false,
+     false
+    ]
+   }
+  },
+  {
+   "name": "cat_ordered_le",
+   "operation": "ordered categorical s <= 'm'",
+   "expected": {
+    "values": [
+     true,
+     true,
+     false,
+     true,
+     true
+    ]
+   }
+  },
+  {
+   "name": "cat_value_counts",
+   "operation": "ordered.value_counts() \u2014 ties keep category order",
+   "expected": {
+    "values": [
+     2,
+     2,
+     1
+    ],
+    "index": [
+     "s",
+     "m",
+     "l"
+    ]
+   }
+  },
+  {
+   "name": "cat_value_counts_explicit",
+   "operation": "explicit-category value_counts includes tie order",
+   "expected": {
+    "values": [
+     2,
+     1,
+     1
+    ],
+    "index": [
+     "b",
+     "c",
+     "a"
+    ]
+   }
+  },
+  {
+   "name": "cat_sort_values",
+   "operation": "ordered.sort_values() sorts by category rank",
+   "expected": {
+    "values": [
+     "s",
+     "s",
+     "m",
+     "m",
+     "l"
+    ]
+   }
+  },
+  {
+   "name": "cat_groupby_mean",
+   "operation": "df.groupby(categorical, observed=True).mean() in category order",
+   "expected": {
+    "columns": [
+     "size",
+     "price"
+    ],
+    "rows": [
+     [
+      "s",
+      1.5
+     ],
+     [
+      "m",
+      5.5
+     ],
+     [
+      "l",
+      10.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "cat_rename_categories",
+   "operation": "s.cat.rename_categories({'s': 'small'})",
+   "expected": {
+    "values": [
+     "m",
+     "small",
+     "l",
+     "m",
+     "small"
+    ]
+   }
+  },
+  {
+   "name": "cat_set_categories_na",
+   "operation": "s.cat.set_categories(['m','l']) \u2014 removed become NA",
+   "expected": {
+    "values": [
+     "m",
+     null,
+     "l",
+     "m",
+     null
+    ]
+   }
+  },
+  {
+   "name": "cat_merge_inner",
+   "operation": "merge on categorical key keeps left row order",
+   "expected": {
+    "columns": [
+     "size",
+     "price",
+     "label"
+    ],
+    "rows": [
+     [
+      "m",
+      5.0,
+      "medium"
+     ],
+     [
+      "s",
+      1.0,
+      "small"
+     ],
+     [
+      "l",
+      10.0,
+      "large"
+     ],
+     [
+      "m",
+      6.0,
+      "medium"
+     ],
+     [
+      "s",
+      2.0,
+      "small"
+     ]
+    ]
+   }
+  },
+  {
+   "name": "cat_csv_roundtrip",
+   "operation": "to_csv writes labels; read_csv(dtype='category') round-trips",
+   "expected": {
+    "columns": [
+     "size",
+     "price"
+    ],
+    "rows": [
+     [
+      "m",
+      5.0
+     ],
+     [
+      "s",
+      1.0
+     ],
+     [
+      "l",
+      10.0
+     ],
+     [
+      "m",
+      6.0
+     ],
+     [
+      "s",
+      2.0
+     ]
+    ]
+   }
+  }
+ ]
+}

@@ -1,6 +1,17 @@
 # Roadmap
 
-## v0.6.1 (this release) — typed concat + stability audit
+## v0.7 (this release) — typed categorical dtype
+
+- pd.Category with real typed storage: int32 codes into a shared
+  immutable category list. Astype both ways, Cat() accessor
+  (categories/codes/ordered/rename/reorder/set/add/remove), ordered
+  rank comparisons, strict explicit categories, WithCategorical CSV
+  reads, label-only writers. Code fast paths in every engine: groupby
+  slot-array ids (3.4x), counting-sort sort_values (91x), array-pass
+  value_counts (134x), code-space merge (2.1x), concat category union,
+  ~3.4x smaller storage than strings at 500K rows / 8 labels.
+
+## v0.6.1 — typed concat + stability audit
 
 - Vertical concat appends typed column segments with one-shot numeric
   promotion and NA gaps for missing columns; typed index concatenation;
@@ -65,13 +76,12 @@
 ## Next: stronger pandas
 
 - MultiIndex beyond construction; groupby/set_index integration.
-- Categorical dtype (typed storage for categories).
 - Timezone-aware datetimes; to_datetime with formats.
 - Resample; time-based rolling windows.
 - pivot_table with multiple values/aggfuncs; stack/unstack.
 - df.eval; stronger query parser (arithmetic in queries).
 
-## v0.7 — performance backends
+## Later — performance backends
 
 - Integer compute kernels (skip the float64 pass).
 - Arrow interchange; Parquet and DuckDB adapters; gonum linalg adapter
