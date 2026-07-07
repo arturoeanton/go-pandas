@@ -1,6 +1,29 @@
 # Roadmap
 
-## v0.7 (this release) — typed categorical dtype
+## v0.7.1 (this release) — categorical audit + pre-MultiIndex hardening
+
+- Docs made consistent with v0.7 (removed stale "no typed storage for
+  categorical" claims). Implicit categories now require one label
+  family (numeric/string/bool/time) so the sorted default order is
+  total — mixed families return ErrTypeMismatch; explicit categories
+  still accept mixed hashable labels. CodeOf resolves labels through a
+  lazily-built lookup map shared per immutable category list (O(1) at
+  any cardinality, race-safe). New targeted tests, fuzz targets and
+  high-cardinality benchmarks.
+
+## v0.8 — MultiIndex real (staged)
+
+Implement in stages, each independently shippable and golden-tested:
+
+1. MultiIndex storage and constructors (levels + codes, reusing the
+   categorical factorization machinery).
+2. SetIndex with multiple columns.
+3. ResetIndex from MultiIndex (restore label columns).
+4. Loc by tuple (exact tuple match first; partial/slice later).
+5. GroupBy multi-key output as optional MultiIndex.
+6. Join/merge by MultiIndex later — after 1–5 stabilize.
+
+## v0.7 — typed categorical dtype
 
 - pd.Category with real typed storage: int32 codes into a shared
   immutable category list. Astype both ways, Cat() accessor

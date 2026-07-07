@@ -16,9 +16,11 @@ names and behavior — verified against **golden outputs generated from
 real pandas and NumPy** (255 test cases, pandas 2.3 / NumPy 2.0).
 
 Since v0.7, `pd.Category` is a **typed categorical dtype**: int32 codes
-into a shared category list, with code fast paths everywhere — sorting a
-500K-row categorical is ~91x faster than strings, value_counts ~134x,
-group-means ~3.4x, and the storage is ~3.4x smaller. Since v0.6, `Merge`/`Join` run on a **typed hash-join engine** (a 100K
+into a shared category list, with code fast paths everywhere — on an
+Apple M4 with 500K rows over 8 distinct labels, sorting a categorical is
+~91x faster than strings, value_counts ~134x, group-means ~3.4x, and the
+storage is ~3.4x smaller (gains depend on label repetition; see
+docs/categorical.md). Since v0.6, `Merge`/`Join` run on a **typed hash-join engine** (a 100K
 x 10K int-key merge takes ~2 ms with ~180 allocations, ~8x faster than
 v0.5). Since v0.5, `GroupBy` runs on a **typed engine** (typed key maps +
 segment reducers — a 100K-row group-mean takes ~0.9 ms with 70
@@ -68,7 +70,7 @@ Zero dependencies outside the standard library.
 | `df.dropna(thresh=2)` | `df.DropNA(pd.DropNAThresh(2))` |
 | `s.rank(method="dense")` | `s.Rank(pd.RankMethod("dense"))` |
 | `s.dt.quarter` / `s.str.match(p)` | `s.Dt().Quarter()` / `s.Str().Match(p)` |
-| `s.astype("category")` / `s.cat.codes` | `s.Astype(pd.Category)` / `s.Cat().Codes()` |
+| `s.astype("category")` / `s.cat.codes` | `s.Astype(pd.Category)` / `cat, _ := s.Cat(); cat.Codes()` |
 
 Full guide: [docs/pandas_translation_guide.md](docs/pandas_translation_guide.md)
 

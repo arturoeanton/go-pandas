@@ -38,6 +38,27 @@ BenchmarkPositionsFromMask100K           ~0.10 ms/op, 1 alloc
 BenchmarkDropNA100K                      ~0.91 ms/op, 44 allocs
 ```
 
+Categorical dtype (v0.7/v0.7.1, Apple M4, 500K rows, 8 distinct labels,
+string baseline vs categorical):
+
+```text
+BenchmarkGroupByMeanStringKey500K           ~4.5 ms/op
+BenchmarkGroupByMeanCategoricalKey500K      ~1.3 ms/op   (3.4x)
+BenchmarkSortValuesStringKey500K            ~119 ms/op
+BenchmarkSortValuesCategoricalKey500K       ~1.3 ms/op   (91x, counting sort)
+BenchmarkValueCountsStringKey500K           ~34 ms/op
+BenchmarkValueCountsCategoricalKey500K      ~0.25 ms/op  (134x)
+BenchmarkMergeInnerStringKey200K            ~3.8 ms/op   (200K rows)
+BenchmarkMergeInnerCategoricalKey200K       ~1.8 ms/op   (2.1x)
+BenchmarkMemoryStringStorage500K            ~8.5 MB/copy
+BenchmarkMemoryCategoricalStorage500K       ~2.5 MB/copy (3.4x smaller)
+BenchmarkCategoricalCodeOfHighCardinality   ~18 ns/op    (50K categories, lookup map, v0.7.1)
+```
+
+Categorical is most beneficial for low/medium-cardinality repeated
+labels. High-cardinality categoricals may not improve memory or speed —
+the numbers above depend on 8 categories over 500K rows.
+
 Typed concat engine (v0.6.1, 100K+100K rows):
 
 ```text

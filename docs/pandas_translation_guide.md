@@ -199,10 +199,11 @@ s.astype("category")                       s.Astype(pd.Category)
 pd.Categorical(v, categories=c, ordered=True)
                                            pd.CategoricalSeries("s", v,
                                                pd.WithCategories(...), pd.WithOrdered(true))
-s.cat.categories / s.cat.codes             s.Cat().Categories() / s.Cat().Codes()
-s.cat.rename_categories({"s": "small"})    s.Cat().RenameCategories(map[any]any{"s": "small"})
-s.cat.reorder_categories(c, ordered=True)  s.Cat().ReorderCategories(c, true)
-s.cat.set_categories(c)                    s.Cat().SetCategories(c, false)
+s.cat                                      cat, _ := s.Cat()  // (*CategoricalAccessor, error)
+s.cat.categories / s.cat.codes             cat.Categories() / cat.Codes()
+s.cat.rename_categories({"s": "small"})    cat.RenameCategories(map[any]any{"s": "small"})
+s.cat.reorder_categories(c, ordered=True)  cat.ReorderCategories(c, true)
+s.cat.set_categories(c)                    cat.SetCategories(c, false)
 s > "m"  (ordered)                         s.Gt("m")  // by category rank
 pd.read_csv(f, dtype={"c": "category"})    pd.ReadCSV(f, pd.WithCategorical("c"))
 ```

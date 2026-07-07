@@ -37,6 +37,7 @@ Storage is **real**, not logical metadata:
 | float64 | `[]float64` + mask | `[]float64` |
 | string | `[]string` + mask | `[]string` |
 | time.Time | `[]time.Time` + mask | — |
+| category (v0.7) | `[]int32` codes + shared `[]any` category list + mask | — |
 | mixed / unsupported | `[]any` (object) + mask | — |
 
 Introspection: `s.StorageDType()`, `s.IsObjectBacked()`,
@@ -44,8 +45,10 @@ Introspection: `s.StorageDType()`, `s.IsObjectBacked()`,
 data `DType()` and `StorageDType()` agree; object-backed Series report
 `Object` storage under whatever logical dtype they carry.
 
-Still object-backed: mixed values, complex numbers, categorical data and
-exotic integer widths inside `[]any` input.
+Still object-backed: mixed values, complex numbers and exotic integer
+widths inside `[]any` input. Categorical data is typed since v0.7 —
+int32 codes into a shared immutable category list; see
+[categorical.md](categorical.md).
 
 ## Typed gather and filtering
 

@@ -3,6 +3,7 @@ package column
 import (
 	"fmt"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/arturoeanton/go-pandas/dtype"
@@ -22,6 +23,30 @@ type CategoricalColumn struct {
 	categories []any
 	ordered    bool
 	mask       []bool
+
+	// lookup lazily indexes categories for CodeOf. It is shared (as a
+	// pointer) by every column derived through with()/Take/Slice/Copy —
+	// safe because it is tied to one immutable category list; operations
+	// that build a new category list build a new lookup.
+	lookup *catLookup
+}
+
+// catLookup is the label -> code index, built at most once per category
+// list. Constructors that already computed the map seed it; otherwise
+// the first CodeOf builds it under the Once.
+type catLookup struct {
+	once sync.Once
+	m    map[any]int32
+}
+
+// newCatLookup wraps a prebuilt map (may be nil for lazy build). A
+// seeded map consumes the Once so the lazy path never rebuilds it.
+func newCatLookup(m map[any]int32) *catLookup {
+	l := &catLookup{m: m}
+	if m != nil {
+		l.once.Do(func() {})
+	}
+	return l
 }
 
 // NewCategorical assembles a categorical column from buffers already in
@@ -29,7 +54,10 @@ type CategoricalColumn struct {
 // invariants: codes index categories, codes[i] == -1 iff mask[i], and
 // the categories slice is not mutated afterwards.
 func NewCategorical(codes []int32, categories []any, ordered bool, mask []bool) *CategoricalColumn {
-	return &CategoricalColumn{codes: codes, categories: categories, ordered: ordered, mask: mask}
+	return &CategoricalColumn{
+		codes: codes, categories: categories, ordered: ordered, mask: mask,
+		lookup: newCatLookup(nil),
+	}
 }
 
 // AsCategorical narrows a column to its categorical implementation.
@@ -61,12 +89,22 @@ func (c *CategoricalColumn) Ordered() bool { return c.ordered }
 // CategoryCount returns the number of categories.
 func (c *CategoricalColumn) CategoryCount() int { return len(c.categories) }
 
-// CodeOf resolves a label to its category code (-1 when absent).
+// CodeOf resolves a label to its category code (-1 when absent) through
+// the lazily-built lookup map — O(1) regardless of cardinality (v0.7.1;
+// previously a linear scan).
 func (c *CategoricalColumn) CodeOf(label any) int32 {
-	for i, cat := range c.categories {
-		if cat == label {
-			return int32(i)
+	if !hashableLabel(label) {
+		return -1 // unhashable values are never categories
+	}
+	c.lookup.once.Do(func() {
+		m := make(map[any]int32, len(c.categories))
+		for i, cat := range c.categories {
+			m[cat] = int32(i)
 		}
+		c.lookup.m = m
+	})
+	if code, ok := c.lookup.m[label]; ok {
+		return code
 	}
 	return -1
 }
@@ -107,6 +145,7 @@ func (c *CategoricalColumn) with(codes []int32, mask []bool) *CategoricalColumn 
 		codes: codes, mask: mask,
 		categories: c.categories, // shared: immutable by invariant
 		ordered:    c.ordered,
+		lookup:     c.lookup, // same categories -> same lookup
 	}
 }
 
@@ -171,6 +210,23 @@ func hashableLabel(v any) bool {
 	return false
 }
 
+// labelFamily buckets labels into the families that share a total order
+// (the numeric widths order together through AsFloat). Implicit category
+// inference requires one family so the sorted default category order is
+// always well defined (v0.7.1).
+func labelFamily(v any) string {
+	switch v.(type) {
+	case bool:
+		return "bool"
+	case string:
+		return "string"
+	case time.Time:
+		return "time"
+	default:
+		return "numeric" // hashableLabel restricts the rest to numeric kinds
+	}
+}
+
 // sortLabels orders labels the way pandas builds default categories:
 // ascending by value (numbers, strings or times).
 func sortLabels(labels []any) {
@@ -202,8 +258,13 @@ func labelLess(a, b any) bool {
 //
 //   - With nil explicit categories, the category list is the SORTED set
 //     of distinct labels (pandas' default for astype("category")).
+//     Implicit labels must belong to ONE label family (numeric, string,
+//     bool or time.Time) so that order is total — mixed families return
+//     ErrTypeMismatch; provide explicit categories or keep object
+//     storage (v0.7.1).
 //   - With explicit categories, their order is preserved; values outside
-//     the list are an error (strict mode).
+//     the list are an error (strict mode). Mixed families are allowed
+//     because the order is user-provided.
 //
 // NA values become code -1. Unhashable labels are an error.
 func Factorize(values []any, explicit []any, ordered bool) (*CategoricalColumn, error) {
@@ -222,12 +283,18 @@ func Factorize(values []any, explicit []any, ordered bool) (*CategoricalColumn, 
 		}
 	} else {
 		seen := make(map[any]bool)
+		family := ""
 		for _, v := range values {
 			if dtype.IsNA(v) {
 				continue
 			}
 			if !hashableLabel(v) {
 				return nil, fmt.Errorf("%w: cannot use %T as a category label", errs.ErrTypeMismatch, v)
+			}
+			if f := labelFamily(v); family == "" {
+				family = f
+			} else if f != family {
+				return nil, fmt.Errorf("%w: cannot infer categories from mixed %s and %s labels; provide explicit categories with pd.WithCategories or keep object storage", errs.ErrTypeMismatch, family, f)
 			}
 			if !seen[v] {
 				seen[v] = true
@@ -257,7 +324,10 @@ func Factorize(values []any, explicit []any, ordered bool) (*CategoricalColumn, 
 		}
 		codes[i] = code
 	}
-	return &CategoricalColumn{codes: codes, categories: categories, ordered: ordered, mask: mask}, nil
+	return &CategoricalColumn{
+		codes: codes, categories: categories, ordered: ordered, mask: mask,
+		lookup: newCatLookup(lookup),
+	}, nil
 }
 
 // WithCategories rebuilds the column against a new category list:
@@ -297,6 +367,7 @@ func (c *CategoricalColumn) WithCategories(categories []any, ordered bool) (*Cat
 		codes: codes, mask: mask,
 		categories: append([]any(nil), categories...),
 		ordered:    ordered,
+		lookup:     newCatLookup(lookup),
 	}, nil
 }
 
@@ -323,5 +394,6 @@ func (c *CategoricalColumn) RenameCategories(mapping map[any]any) (*CategoricalC
 		mask:       append([]bool(nil), c.mask...),
 		categories: categories,
 		ordered:    c.ordered,
+		lookup:     newCatLookup(nil), // new category list, lazy rebuild
 	}, nil
 }

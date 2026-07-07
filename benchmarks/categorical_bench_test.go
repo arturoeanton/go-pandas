@@ -1,6 +1,7 @@
 package benchmarks
 
 import (
+	"fmt"
 	"testing"
 
 	pd "github.com/arturoeanton/go-pandas"
@@ -140,6 +141,38 @@ func BenchmarkMergeInnerCategoricalKey200K(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		if _, err := left.Merge(right, opts); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+// BenchmarkCategoricalOrderedCompareHighCardinality measures an ordered
+// rank comparison against a 20K-category, 100K-row categorical: one
+// CodeOf resolution (map lookup since v0.7.1) plus an int32 pass.
+// Note: high-cardinality categoricals mostly LOSE the memory advantage —
+// categorical pays off for low/medium-cardinality repeated labels.
+func BenchmarkCategoricalOrderedCompareHighCardinality(b *testing.B) {
+	k, n := 20_000, 100_000
+	labels := make([]any, k)
+	for i := range labels {
+		labels[i] = fmt.Sprintf("label-%06d", i)
+	}
+	values := make([]any, n)
+	for i := range values {
+		values[i] = labels[i%k]
+	}
+	s, err := pd.NewCategoricalSeries("v", values,
+		pd.WithCategories(labels...), pd.WithOrdered(true))
+	if err != nil {
+		b.Fatal(err)
+	}
+	cat, err := s.Cat()
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := cat.Gt(labels[i%k]); err != nil {
 			b.Fatal(err)
 		}
 	}

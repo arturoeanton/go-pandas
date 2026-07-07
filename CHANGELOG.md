@@ -1,5 +1,63 @@
 # Changelog
 
+## v0.7.1 - Categorical Audit and Pre-MultiIndex Hardening
+
+### Fixed
+- Removed stale documentation saying categorical data has no typed
+  storage (known_differences.md, dtype_semantics.md); the storage
+  tables now list the category backing (int32 codes + shared list).
+- Docs no longer show impossible chaining (`s.Cat().Codes()`): `Cat()`
+  returns `(*CategoricalAccessor, error)` and every example handles it.
+- `CodeOf` no longer panics (and never did the linear scan's
+  uncomparable-type comparison) when asked about an unhashable label —
+  it returns -1.
+
+### Improved
+- **Implicit category policy**: default (sorted) categories now require
+  one label family — numeric (all widths together), string, bool or
+  time.Time. Mixed families return `ErrTypeMismatch` with a hint to use
+  explicit categories; explicit categories still accept mixed hashable
+  labels because their order is user-provided. Documented in
+  categorical.md and known_differences.md.
+- **CodeOf uses a lazy lookup map**: built at most once per immutable
+  category list under a `sync.Once`, shared safely by Take/Slice/Copy
+  derivatives (same categories ⇒ same lookup), rebuilt by operations
+  that change categories. Constructors that already computed the map
+  seed it. 50K-category label resolution: ~18 ns/op.
+- Clarified categorical known differences (union concat, observed-only
+  groupby, unordered Series comparisons all-false vs accessor/expr
+  errors) and performance claims (Apple M4, row counts, 8-label
+  cardinality; note that high-cardinality categoricals may not help).
+
+### Tests
+- New unit tests: mixed-family policies, default numeric/string/time
+  category order, high-cardinality CodeOf, lookup race (with -race),
+  Take/accessor immutability, observed-only groupby, CSV/JSON label
+  output, concat union, SetCategories NA semantics, and a docs-audit
+  test guarding against the stale object-backed claim.
+- New fuzz targets: FuzzCategoricalExplicitCategories,
+  FuzzCategoricalSetCategories, FuzzCategoricalConcatUnion (invariants:
+  no panic, valid codes, code -1 iff NA, unique categories, inputs not
+  mutated).
+- New benchmarks: BenchmarkCategoricalCodeOfHighCardinality,
+  BenchmarkCategoricalOrderedCompareHighCardinality.
+
+### Docs
+- categorical.md: implicit family rule, FromAny downgrade note,
+  cardinality guidance. performance.md: categorical section with the
+  full benchmark table. roadmap.md: staged v0.8 MultiIndex plan
+  (storage → SetIndex → ResetIndex → Loc tuple → GroupBy MultiIndex →
+  merge later).
+
+### Known limitations
+- Goldens unchanged (255; pandas 2.3.3 / NumPy 2.0.2) — no new golden
+  needed for this patch.
+- `column.FromAny(values, Category)` keeps the general FromAny contract
+  and silently downgrades to object on factorization errors;
+  `Astype(pd.Category)` and the constructors surface the error.
+- Cat-vs-cat column comparisons in Series/expr still compare labels via
+  the generic path (scalar comparisons use codes).
+
 ## v0.7.0 - Typed Categorical Columns
 
 ### Added

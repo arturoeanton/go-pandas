@@ -49,6 +49,16 @@ Like pandas, default categories are sorted, so
 produces categories `[l m s]` and codes `[1 2 0 1 -1 2]` (verified
 against pandas 2.3.3 goldens).
 
+**Implicit categories require one label family** (v0.7.1): numeric
+(all int/uint/float widths order together), string, bool, or
+`time.Time`. Mixing families — e.g. `[]any{"a", 1}` — returns
+`ErrTypeMismatch`, because a sorted default order would not be total.
+Provide explicit categories (`pd.WithCategories`, where the order is
+user-provided and mixed hashable labels are allowed) or keep object
+storage. Note `column.FromAny`/`WithDType(pd.Category)` follow the
+general FromAny contract and downgrade to object on error instead of
+failing; `Astype(pd.Category)` and the constructors surface the error.
+
 ## The Cat() accessor
 
 ```go
@@ -97,7 +107,18 @@ Every hot path consumes codes directly, never boxed labels:
 | Concat | code stacking with category-list union | stays categorical |
 | Storage | int32 codes + mask vs string headers | 8.5MB → 2.5MB (3.4x) |
 
-(`go test ./benchmarks -bench Categorical` on Apple Silicon; run your own.)
+(Apple M4, `go test ./benchmarks -bench Categorical`; the table is
+500K rows with 8 distinct labels unless noted — run your own.)
+
+**Cardinality matters.** Categorical pays off for low/medium-cardinality
+repeated labels: the wins above come from 8 categories over 500K rows.
+High-cardinality categoricals (labels mostly unique) may not improve
+memory or speed — the codes array plus the category list can approach or
+exceed plain string storage, and factorization costs a full pass.
+`CodeOf` label resolution is O(1) since v0.7.1 (a lazily-built lookup
+map shared per category list — `BenchmarkCategoricalCodeOfHighCardinality`
+covers 50K categories at ~18 ns/op), so lookups no longer degrade with
+cardinality, but the storage math still favors repetition.
 
 GroupBy orders groups by category rank (pandas `sort=True` on
 categoricals), sort_values on a categorical column sorts by rank, and
@@ -122,5 +143,8 @@ column round-trips through `pd.WithCategorical("col")`.
   expression engine return the explicit error.
 - `ValueCounts` on a categorical includes zero-count categories and
   breaks count ties in category order, like pandas.
+- Implicit categories reject mixed label families (v0.7.1) where pandas
+  would build an object-dtype category list; explicit categories accept
+  mixed hashable labels.
 
 See [known_differences.md](../compat/known_differences.md).

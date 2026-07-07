@@ -46,8 +46,9 @@ root-function parity). Inside expressions use the `*Expr` suffix:
   columns back onto typed columns for bool/int/int64/float32/float64/
   string/time data. Object-backed `[]any` storage remains only for mixed
   or unsupported values (`s.IsObjectBacked()` / `StorageDType()` tell
-  you which). Complex numbers and categorical data have no typed storage
-  yet.
+  you which). Complex numbers remain object-backed. Categorical data has
+  typed storage since v0.7 through int32 codes plus a shared category
+  list (see the Categorical section below).
 - `NDArray.Astype` and `Series.Astype` convert real storage. Float to
   integer truncates toward zero; string sources parse (string→int goes
   through float parsing, so "2.5" truncates rather than erroring like
@@ -183,6 +184,12 @@ writers. Documented differences:
 - Categories are never inferred automatically — conversion requires
   `Astype(pd.Category)`, a categorical constructor, or the
   `pd.WithCategorical` CSV option.
+- **Implicit categories require one label family** (numeric, string,
+  bool or time.Time) so the sorted default order is total; mixed
+  families return `ErrTypeMismatch` (v0.7.1). pandas would build an
+  object-dtype category list with Python's cross-type ordering quirks.
+  Explicit categories (`pd.WithCategories`) accept mixed hashable
+  labels because the order is user-provided.
 
 ## Random
 

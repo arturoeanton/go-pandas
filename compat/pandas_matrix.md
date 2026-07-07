@@ -72,12 +72,12 @@ Differences in behavior are documented in [known_differences.md](known_differenc
 | s.astype(...) | s.Astype(dt) | done | pd.ParseDType for names |
 | s.astype("category") | s.Astype(pd.Category) | done | typed int32 codes; sorted default categories (v0.7) |
 | pd.Categorical(...) / CategoricalDtype | pd.CategoricalSeries / NewCategoricalSeries + WithCategories/WithOrdered | done | explicit categories are strict |
-| s.cat.categories / codes / ordered | s.Cat().Categories()/Codes()/Ordered() | done | |
-| s.cat.rename_categories | s.Cat().RenameCategories(map) | done | keeps codes |
-| s.cat.reorder_categories | s.Cat().ReorderCategories(list, ordered) | done | must keep the set |
-| s.cat.set_categories | s.Cat().SetCategories(list, ordered) | done | removed categories become NA |
-| s.cat.add_categories / remove_categories | s.Cat().AddCategories / RemoveCategories | done | |
-| ordered comparisons (s > 'm') | s.Gt / s.Cat().Gt / expr Col().Gt | done | by category rank; unordered -> ErrInvalidOperation (accessor/expr) |
+| s.cat.categories / codes / ordered | cat.Categories()/Codes()/Ordered() | done | cat, err := s.Cat() — errors on non-categorical |
+| s.cat.rename_categories | cat.RenameCategories(map) | done | keeps codes |
+| s.cat.reorder_categories | cat.ReorderCategories(list, ordered) | done | must keep the set |
+| s.cat.set_categories | cat.SetCategories(list, ordered) | done | removed categories become NA |
+| s.cat.add_categories / remove_categories | cat.AddCategories / RemoveCategories | done | |
+| ordered comparisons (s > 'm') | s.Gt / cat.Gt / expr Col().Gt | done | by category rank; unordered -> ErrInvalidOperation (accessor/expr), Series methods all-false |
 | s.unique()/nunique() | s.Unique() / s.NUnique(dropNA) | done | |
 | s.value_counts() | s.ValueCounts(...) | done | returns Series |
 | s.sort_values()/sort_index() | s.SortValues(asc)/s.SortIndex(asc) | done | |
