@@ -38,6 +38,19 @@ BenchmarkPositionsFromMask100K           ~0.10 ms/op, 1 alloc
 BenchmarkDropNA100K                      ~0.91 ms/op, 44 allocs
 ```
 
+MultiIndex (v0.8, Apple M4, 100K rows, 8x50 label space):
+
+```text
+BenchmarkMultiIndexBuild100K            ~5.9 ms/op
+BenchmarkMultiIndexTake100K             ~0.12 ms/op, 6 allocs (typed code gather)
+BenchmarkMultiIndexFullTupleLookup100K  ~104 ns/op (lazy tuple map)
+BenchmarkMultiIndexPrefixLookup100K     ~93 µs/op (code scan, documented)
+BenchmarkSetIndexMultiColumn100K        ~8.3 ms/op (boxes key values at build)
+BenchmarkResetIndexMultiIndex100K       ~3.4 ms/op
+BenchmarkWherePreserveMultiIndex100K    ~0.46 ms/op
+BenchmarkGroupByAsIndexMultiIndex100K   ~2.4 ms/op
+```
+
 Categorical dtype (v0.7/v0.7.1, Apple M4, 500K rows, 8 distinct labels,
 string baseline vs categorical):
 

@@ -38,6 +38,7 @@ Storage is **real**, not logical metadata:
 | string | `[]string` + mask | `[]string` |
 | time.Time | `[]time.Time` + mask | — |
 | category (v0.7) | `[]int32` codes + shared `[]any` category list + mask | — |
+| MultiIndex labels (v0.8) | per-level `[]any` unique lists + `[]int32` codes | — |
 | mixed / unsupported | `[]any` (object) + mask | — |
 
 Introspection: `s.StorageDType()`, `s.IsObjectBacked()`,

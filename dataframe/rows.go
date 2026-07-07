@@ -112,11 +112,33 @@ func (df *DataFrame) Sample(n int, opts ...SampleOption) (*DataFrame, error) {
 }
 
 // ResetIndex returns the frame with a fresh RangeIndex. Like pandas
-// reset_index, a non-default index is inserted as the first column (named
-// after the index, or "index").
+// reset_index, a non-default index is inserted as leading columns: one
+// column per MultiIndex level (named after the level, or level_N), or a
+// single column for a plain index (named after the index, or "index").
 func (df *DataFrame) ResetIndex() *DataFrame {
 	var cols []*series.Series
-	if _, isRange := df.index.(*index.RangeIndex); !isRange {
+	switch ix := df.index.(type) {
+	case *index.RangeIndex:
+		// default index: nothing to insert
+	case *index.MultiIndex:
+		names := ix.Names()
+		for l := 0; l < ix.NLevels(); l++ {
+			name := names[l]
+			if name == "" {
+				name = fmt.Sprintf("level_%d", l)
+			}
+			values := make([]any, ix.Len())
+			for i := range values {
+				if ix.IsNA(i, l) {
+					continue
+				}
+				values[i] = ix.Tuple(i)[l]
+			}
+			// Infer restores the typed backing per level (string/int/
+			// time/...), so level dtypes round-trip.
+			cols = append(cols, series.NewSeries(name, values))
+		}
+	default:
 		name := df.index.Name()
 		if name == "" {
 			name = "index"
@@ -130,17 +152,43 @@ func (df *DataFrame) ResetIndex() *DataFrame {
 	return out
 }
 
-// SetIndex uses a column's values as the new row index; the column is
-// removed from the frame, like df.set_index("col"). Multiple columns
-// (MultiIndex) are not supported yet.
+// SetIndex uses column values as the new row index, removing the columns
+// from the frame like df.set_index(cols). One column keeps the
+// historical simple-index behavior; two or more build a MultiIndex
+// (v0.8) whose level dtypes follow the column values (categorical
+// columns contribute their labels).
 func (df *DataFrame) SetIndex(columns ...string) (*DataFrame, error) {
 	if len(columns) == 0 {
 		return nil, fmt.Errorf("%w: SetIndex needs a column", errs.ErrInvalidOperation)
 	}
 	if len(columns) > 1 {
-		return nil, errs.NotImplemented("DataFrame.SetIndex with multiple columns (MultiIndex)")
+		return df.setIndexMulti(columns)
 	}
 	return df.setIndexSingle(columns[0])
+}
+
+func (df *DataFrame) setIndexMulti(columns []string) (*DataFrame, error) {
+	arrays := make([][]any, len(columns))
+	for k, name := range columns {
+		c, err := df.Col(name)
+		if err != nil {
+			return nil, err
+		}
+		arrays[k] = c.Values() // categorical columns yield labels
+	}
+	idx, err := index.NewMultiIndexFromArrays(arrays, columns)
+	if err != nil {
+		return nil, err
+	}
+	rest, err := df.Drop(columns...)
+	if err != nil {
+		return nil, err
+	}
+	cols := make([]*series.Series, len(rest.columns))
+	for i, c := range rest.columns {
+		cols[i] = c.WithIndexed(idx)
+	}
+	return newFrame(cols, idx)
 }
 
 func (df *DataFrame) setIndexSingle(column string) (*DataFrame, error) {

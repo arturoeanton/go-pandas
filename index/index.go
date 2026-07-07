@@ -33,6 +33,11 @@ type Index interface {
 // selected labels keep a constant step, and an Int64Index otherwise;
 // StringIndex and DatetimeIndex gather their typed backings.
 func Take(idx Index, positions []int) Index {
+	// MultiIndex gathers codes typed and handles negative positions as
+	// all-NA tuples itself (v0.8).
+	if mi, ok := idx.(*MultiIndex); ok {
+		return mi.Take(positions)
+	}
 	for _, p := range positions {
 		if p < 0 {
 			return takeBoxed(idx, positions)
@@ -114,6 +119,11 @@ func takeBoxed(idx Index, positions []int) Index {
 	}
 	return fromValues(values, idx.Name())
 }
+
+// FromLabels builds the most specific index type for boxed labels
+// (string/time stay typed, anything else keeps boxed labels). Used by
+// groupby as_index single-key output (v0.8).
+func FromLabels(values []any, name string) Index { return fromValues(values, name) }
 
 // fromValues rebuilds the most specific index type for a list of labels.
 func fromValues(values []any, name string) Index {

@@ -138,8 +138,13 @@ func TestILocMixedAndLabelSlice(t *testing.T) {
 
 func TestSetIndexMultiAndResetIndex(t *testing.T) {
 	df := sampleFrame(t)
-	if _, err := df.SetIndex("country", "name"); !errors.Is(err, errs.ErrNotImplementedBase) {
-		t.Errorf("multi SetIndex error = %v", err)
+	// v0.8: multi-column SetIndex builds a real MultiIndex.
+	multi, err := df.SetIndex("country", "name")
+	if err != nil {
+		t.Fatalf("multi SetIndex error = %v", err)
+	}
+	if _, ok := multi.Index().(*index.MultiIndex); !ok {
+		t.Fatalf("multi SetIndex index = %T, want *index.MultiIndex", multi.Index())
 	}
 	indexed, err := df.SetIndex("name")
 	if err != nil {

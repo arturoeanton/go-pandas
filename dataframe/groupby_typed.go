@@ -232,11 +232,47 @@ func (gb *GroupBy) fallbackAgg(gp *groupPlan, s *series.Series, agg string) (col
 	return column.Infer(values), nil
 }
 
-// assembleAgg builds the output frame: typed key label columns followed
-// by one column per aggregation spec, all sharing one RangeIndex.
+// aggScaffold builds the output index plus leading key columns: by
+// default keys become regular columns over a RangeIndex; with AsIndex
+// (v0.8) the group keys become the result index — a MultiIndex for
+// multi-key groupings, a plain index for one key — and no key columns
+// are emitted.
+func (gb *GroupBy) aggScaffold(gp *groupPlan) (index.Index, []*series.Series, error) {
+	if !gb.asIndex {
+		idx := index.NewRangeIndex(len(gp.order))
+		cols, err := gb.keyLabelSeries(gp, idx)
+		return idx, cols, err
+	}
+	firstRows := make([]int, len(gp.order))
+	for i, g := range gp.order {
+		firstRows[i] = gp.plan.FirstRow[g]
+	}
+	arrays := make([][]any, len(gb.keys))
+	for k, name := range gb.keys {
+		col := gb.df.MustCol(name).Storage()
+		arr := make([]any, len(firstRows))
+		for i, r := range firstRows {
+			if col.IsNA(r) {
+				continue
+			}
+			arr[i] = col.Value(r)
+		}
+		arrays[k] = arr
+	}
+	if len(gb.keys) == 1 {
+		return index.FromLabels(arrays[0], gb.keys[0]), nil, nil
+	}
+	mi, err := index.NewMultiIndexFromArrays(arrays, append([]string(nil), gb.keys...))
+	if err != nil {
+		return nil, nil, err
+	}
+	return mi, nil, nil
+}
+
+// assembleAgg builds the output frame: key labels (as columns or as the
+// index, per AsIndex) followed by one column per aggregation spec.
 func (gb *GroupBy) assembleAgg(gp *groupPlan, specs []aggSpec) (*DataFrame, error) {
-	idx := index.NewRangeIndex(len(gp.order))
-	cols, err := gb.keyLabelSeries(gp, idx)
+	idx, cols, err := gb.aggScaffold(gp)
 	if err != nil {
 		return nil, err
 	}
@@ -256,8 +292,7 @@ func (gb *GroupBy) assembleAgg(gp *groupPlan, specs []aggSpec) (*DataFrame, erro
 
 // sizeFrame builds the Size() result (key labels + "size" column).
 func (gb *GroupBy) sizeFrame(gp *groupPlan) (*DataFrame, error) {
-	idx := index.NewRangeIndex(len(gp.order))
-	cols, err := gb.keyLabelSeries(gp, idx)
+	idx, cols, err := gb.aggScaffold(gp)
 	if err != nil {
 		return nil, err
 	}

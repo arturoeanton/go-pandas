@@ -119,6 +119,13 @@ func concatRows(frames []*DataFrame, o ConcatOptions) (*DataFrame, error) {
 // carries the same label family (integer, string or datetime); mixed
 // families keep the boxed labels as-is.
 func concatIndexes(frames []*DataFrame, total int) index.Index {
+	// Compatible MultiIndexes (same level count) stack into one
+	// MultiIndex, rebuilt from the boxed level arrays so the level
+	// lists re-factorize consistently (v0.8). Mixed shapes fall to the
+	// boxed path below (an object index of tuples, documented).
+	if mi := tryConcatMultiIndex(frames, total); mi != nil {
+		return mi
+	}
 	allInt, allString, allTime := true, true, true
 	for _, f := range frames {
 		switch f.index.(type) {
@@ -164,6 +171,47 @@ func concatIndexes(frames []*DataFrame, total int) index.Index {
 		labels = append(labels, f.index.Values()...)
 	}
 	return indexFromLabels(labels)
+}
+
+// tryConcatMultiIndex stacks MultiIndexes with matching level counts;
+// names come from the first frame. Returns nil when any frame is not a
+// MultiIndex or the level counts differ.
+func tryConcatMultiIndex(frames []*DataFrame, total int) index.Index {
+	var first *index.MultiIndex
+	for _, f := range frames {
+		mi, ok := f.index.(*index.MultiIndex)
+		if !ok {
+			return nil
+		}
+		if first == nil {
+			first = mi
+			continue
+		}
+		if mi.NLevels() != first.NLevels() {
+			return nil
+		}
+	}
+	if first == nil {
+		return nil
+	}
+	arrays := make([][]any, first.NLevels())
+	for l := range arrays {
+		arrays[l] = make([]any, 0, total)
+	}
+	for _, f := range frames {
+		mi := f.index.(*index.MultiIndex)
+		for i := 0; i < mi.Len(); i++ {
+			t := mi.Tuple(i)
+			for l := range arrays {
+				arrays[l] = append(arrays[l], t[l])
+			}
+		}
+	}
+	out, err := index.NewMultiIndexFromArrays(arrays, first.Names())
+	if err != nil {
+		return nil // mixed-family levels etc.: boxed fallback
+	}
+	return out
 }
 
 // concatColumns concatenates frames side by side; row counts must match

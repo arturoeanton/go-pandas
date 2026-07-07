@@ -12,11 +12,12 @@ import (
 // GroupBy holds a deferred grouping of a frame by key columns, like
 // df.groupby(...).
 type GroupBy struct {
-	df     *DataFrame
-	keys   []string
-	dropNA bool
-	sort   bool
-	err    error
+	df      *DataFrame
+	keys    []string
+	dropNA  bool
+	sort    bool
+	asIndex bool
+	err     error
 }
 
 // GroupByOption customizes grouping.
@@ -27,6 +28,20 @@ func GroupDropNA(v bool) GroupByOption { return func(g *GroupBy) { g.dropNA = v 
 
 // GroupSort sorts groups by key (default true, like pandas).
 func GroupSort(v bool) GroupByOption { return func(g *GroupBy) { g.sort = v } }
+
+// GroupAsIndex carries the group keys as the result index instead of key
+// columns (pandas as_index=True): multi-key groupings produce a
+// MultiIndex, single keys a plain index. go-pandas defaults to false —
+// keys stay regular columns, the historical behavior (a documented
+// difference from pandas' as_index=True default).
+func GroupAsIndex(v bool) GroupByOption { return func(g *GroupBy) { g.asIndex = v } }
+
+// AsIndex is the chainable form of GroupAsIndex:
+// df.GroupBy("a", "b").AsIndex(true).Mean().
+func (gb *GroupBy) AsIndex(v bool) *GroupBy {
+	gb.asIndex = v
+	return gb
+}
 
 // GroupBy groups the frame by one or more key columns.
 func (df *DataFrame) GroupBy(keys ...string) *GroupBy {

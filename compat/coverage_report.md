@@ -8,33 +8,40 @@ implemented; `planned` and `not_supported` do not. Reproduce them with:
 go run ./cmd/compat-report
 ```
 
-Behavioral verification: 255 golden test cases generated from real
+Behavioral verification: 263 golden test cases generated from real
 pandas 2.3.3 / NumPy 2.0.2 (`compat/goldens/`), all passing. A matrix row
 can group several closely-related pandas/NumPy APIs, so these counts are
 rows tracked, not individual Python functions.
 
-## pandas compatibility (109 rows tracked, 102 implemented, 94%)
+## pandas compatibility (119 rows tracked, 110 implemented, 92%)
 
 | Area | Rows tracked | Implemented | Coverage |
 |---|---:|---:|---:|
 | Constructors and core attributes | 9 | 9 | 100% |
-| Selection and indexing | 13 | 12 | 92% |
+| Selection and indexing (incl. MultiIndex, v0.8) | 23 | 20 | 86% |
 | Mutation and transforms | 15 | 15 | 100% |
 | Missing values | 5 | 5 | 100% |
-| Series (incl. categorical, v0.7) | 24 | 24 | 100% |
+| Series (incl. categorical, v0.7) | 23 | 23 | 100% |
 | String and datetime accessors | 11 | 10 | 90% |
 | GroupBy | 7 | 6 | 85% |
 | Merge / join / concat | 7 | 7 | 100% |
 | Reshape and window | 9 | 6 | 66% |
 | IO | 10 | 9 | 90% |
 
-Not implemented in the pandas area: MultiIndex operations, timezone
-handling (`tz_localize`/`tz_convert`), resample, stack/unstack, eval,
-ewm, groupby transform/filter, Parquet/Excel/SQL IO.
+The percentage moved from 94% to 92% in v0.8 because the matrix now
+tracks more MultiIndex rows, including planned ones (merge on index
+levels, swaplevel/droplevel/xs) — coverage is counted honestly against
+a larger surface.
 
-Note that "implemented" includes `partial` rows — 17 of the 102 pandas
-rows are partial (e.g. Query grammar subset, single-column SetIndex,
-PivotTable with one aggregation). See the matrix notes for each.
+Not implemented in the pandas area: MultiIndex level operations
+(swaplevel/droplevel/xs, merge on levels, label-range slicing),
+timezone handling (`tz_localize`/`tz_convert`), resample, stack/unstack,
+eval, ewm, groupby transform/filter, Parquet/Excel/SQL IO.
+
+Note that "implemented" includes `partial` rows — 18 of the 110 pandas
+rows are partial (e.g. Query grammar subset, tuple-prefix-only
+MultiIndex selection, PivotTable with one aggregation). See the matrix
+notes for each.
 
 ## NumPy compatibility (53 rows tracked, 47 implemented, 89%)
 
@@ -53,6 +60,13 @@ Not implemented in the NumPy area: det/inv/solve/eig/SVD (planned via the
 gonum adapter), keepdims/axis tuples, fancy integer indexing, negative
 slice steps, searchsorted/isin, random distributions beyond
 rand/randn/randint.
+
+**MultiIndex (v0.8):** real levels+codes storage with sorted unique
+levels and NA components as code -1 (pandas parity, golden-verified).
+Multi-column SetIndex, ResetIndex level expansion, tuple Loc (full via
+lookup map, prefix via scan), optional groupby as_index, typed Take
+preservation through every engine. 8-case golden suite plus equivalence
+fuzzing.
 
 **Categorical (v0.7):** `pd.Category` stores int32 codes into a shared
 category list; Astype both ways, Cat() accessor, rank-based ordered

@@ -1,0 +1,200 @@
+{
+ "suite": "pandas.multiindex",
+ "pandas_version": "2.3.3",
+ "cases": [
+  {
+   "name": "mi_set_reset_roundtrip",
+   "operation": "df.set_index([c1,c2]).reset_index()",
+   "expected": {
+    "columns": [
+     "country",
+     "city",
+     "salary"
+    ],
+    "rows": [
+     [
+      "AR",
+      "Buenos Aires",
+      1000.0
+     ],
+     [
+      "AR",
+      "Cordoba",
+      800.0
+     ],
+     [
+      "BR",
+      "Sao Paulo",
+      1500.0
+     ],
+     [
+      "AR",
+      "Buenos Aires",
+      1200.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "mi_levels_sorted",
+   "operation": "set_index level values are sorted unique",
+   "expected": {
+    "values": [
+     "a",
+     "b",
+     "x",
+     "y"
+    ]
+   }
+  },
+  {
+   "name": "mi_codes",
+   "operation": "MultiIndex.codes",
+   "expected": {
+    "values": [
+     1,
+     0,
+     1,
+     1,
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "name": "mi_loc_full_tuple",
+   "operation": "df.loc[('AR','Buenos Aires')] (duplicate tuples)",
+   "expected": {
+    "columns": [
+     "country",
+     "city",
+     "salary"
+    ],
+    "rows": [
+     [
+      "AR",
+      "Buenos Aires",
+      1000.0
+     ],
+     [
+      "AR",
+      "Buenos Aires",
+      1200.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "mi_loc_prefix",
+   "operation": "df.loc[('AR', slice(None))]",
+   "expected": {
+    "columns": [
+     "country",
+     "city",
+     "salary"
+    ],
+    "rows": [
+     [
+      "AR",
+      "Buenos Aires",
+      1000.0
+     ],
+     [
+      "AR",
+      "Cordoba",
+      800.0
+     ],
+     [
+      "AR",
+      "Buenos Aires",
+      1200.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "mi_groupby_default",
+   "operation": "df.groupby([c1,c2], as_index=False).mean()",
+   "expected": {
+    "columns": [
+     "country",
+     "city",
+     "salary"
+    ],
+    "rows": [
+     [
+      "AR",
+      "Buenos Aires",
+      1100.0
+     ],
+     [
+      "AR",
+      "Cordoba",
+      800.0
+     ],
+     [
+      "BR",
+      "Sao Paulo",
+      1500.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "mi_groupby_as_index_roundtrip",
+   "operation": "groupby(as_index=True).mean().reset_index()",
+   "expected": {
+    "columns": [
+     "country",
+     "city",
+     "salary"
+    ],
+    "rows": [
+     [
+      "AR",
+      "Buenos Aires",
+      1100.0
+     ],
+     [
+      "AR",
+      "Cordoba",
+      800.0
+     ],
+     [
+      "BR",
+      "Sao Paulo",
+      1500.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "mi_na_component_roundtrip",
+   "operation": "set_index with NA components round-trips",
+   "expected": {
+    "columns": [
+     "country",
+     "city",
+     "v"
+    ],
+    "rows": [
+     [
+      "AR",
+      "BA",
+      1.0
+     ],
+     [
+      null,
+      "X",
+      2.0
+     ],
+     [
+      "BR",
+      null,
+      3.0
+     ]
+    ]
+   }
+  }
+ ]
+}

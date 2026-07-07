@@ -489,7 +489,45 @@ def categorical_suite():
     write("categorical.json", "pandas.categorical", cases)
 
 
+def multiindex_suite():
+    df = pd.DataFrame(
+        [
+            {"country": "AR", "city": "Buenos Aires", "salary": 1000.0},
+            {"country": "AR", "city": "Cordoba", "salary": 800.0},
+            {"country": "BR", "city": "Sao Paulo", "salary": 1500.0},
+            {"country": "AR", "city": "Buenos Aires", "salary": 1200.0},
+        ],
+        columns=["country", "city", "salary"],
+    )
+    indexed = df.set_index(["country", "city"])
+    na_df = pd.DataFrame(
+        {"country": ["AR", None, "BR"], "city": ["BA", "X", None], "v": [1.0, 2.0, 3.0]},
+        columns=["country", "city", "v"],
+    )
+    mi = pd.MultiIndex.from_arrays([["b", "a", "b"], ["y", "x", "x"]], names=["l1", "l2"])
+    cases = [
+        case("mi_set_reset_roundtrip", "df.set_index([c1,c2]).reset_index()",
+             ser_frame(indexed.reset_index())),
+        case("mi_levels_sorted", "set_index level values are sorted unique",
+             ser_series(pd.Series(list(mi.levels[0]) + list(mi.levels[1])))),
+        case("mi_codes", "MultiIndex.codes",
+             ser_series(pd.Series([int(c) for arr in mi.codes for c in arr]))),
+        case("mi_loc_full_tuple", "df.loc[('AR','Buenos Aires')] (duplicate tuples)",
+             ser_frame(indexed.loc[[("AR", "Buenos Aires")]].reset_index())),
+        case("mi_loc_prefix", "df.loc[('AR', slice(None))]",
+             ser_frame(indexed.loc[("AR", slice(None)), :].reset_index())),
+        case("mi_groupby_default", "df.groupby([c1,c2], as_index=False).mean()",
+             ser_frame(df.groupby(["country", "city"], as_index=False).mean(numeric_only=True))),
+        case("mi_groupby_as_index_roundtrip", "groupby(as_index=True).mean().reset_index()",
+             ser_frame(df.groupby(["country", "city"], as_index=True).mean(numeric_only=True).reset_index())),
+        case("mi_na_component_roundtrip", "set_index with NA components round-trips",
+             ser_frame(na_df.set_index(["country", "city"]).reset_index())),
+    ]
+    write("multiindex.json", "pandas.multiindex", cases)
+
+
 def main():
+    multiindex_suite()
     categorical_suite()
     dtypes_suite()
     expressions_suite()

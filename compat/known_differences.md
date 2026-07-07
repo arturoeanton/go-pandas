@@ -84,6 +84,33 @@ root-function parity). Inside expressions use the `*Expr` suffix:
 - Unknown labels return `ErrInvalidIndex`; out-of-range positions return
   `ErrIndexOutOfBounds`.
 
+## MultiIndex (v0.8)
+
+Real levels + codes storage with pandas-parity sorted levels and NA
+components as code -1. Documented differences and limits:
+
+- **GroupBy defaults to as_index=false** (keys stay columns); pandas
+  defaults to `as_index=True`. Opt in with `AsIndex(true)` /
+  `pd.GroupAsIndex(true)`.
+- **Partial selection** is prefix-only: `Loc().TuplePrefix(...)` covers
+  `df.loc[(a, slice(None))]` and scans the code arrays (v0.8); general
+  label-range slicing (`MultiIndex.Slice`) returns ErrNotImplemented.
+- **NA tuple components**: nil components in `Loc().Tuple` match NA
+  index components (pandas NaN labels are largely unmatchable);
+  `Loc().Tuple` errors on unknown tuples like `Rows` does on labels.
+- **Concat** stacks MultiIndexes with the same level count (names from
+  the first frame, levels re-factorized); mixed index shapes fall back
+  to a boxed index of tuples.
+- **Merge/join**: join BY index aligns MultiIndexes through boxed tuple
+  keys (works, no typed fast path); merge ON index levels is not
+  supported — use key columns.
+- **Levels are not compacted after Take/filtering**: codes may
+  reference a level subset (pandas keeps unused levels too unless
+  remove_unused_levels is called).
+- **Mixed-family level labels** keep first-appearance order instead of
+  pandas' object-dtype sort; single-family levels sort like pandas.
+- `Series` support for MultiIndex is display/Take-level only.
+
 ## Gather semantics (v0.4.1)
 
 `DataFrame.Take/Slice` and `Series.Take/Slice` return **copies**, never
@@ -107,7 +134,9 @@ falls back to a boxed index with missing labels.
 - Numeric key widths match across frames (int 1 == 1.0); time keys
   compare by Go time.Time equality (wall clock + location). Duplicate
   keys expand deterministically: probe order, then build-side row order.
-- Join by MultiIndex is not supported (placeholder index).
+- Join BY a MultiIndex works since v0.8 through boxed tuple-key
+  alignment (no typed fast path); merge ON MultiIndex levels is not
+  supported — use key columns.
 - Since v0.6 the engine is typed (docs/merge_engine.md); object-backed
   keys keep the historical `%v` matching.
 

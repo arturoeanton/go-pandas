@@ -1,5 +1,72 @@
 # Changelog
 
+## v0.8.0 - Real MultiIndex
+
+### Added
+- Real MultiIndex storage: per-level unique label lists + int32 code
+  arrays, the pandas levels/codes model. codes[level][row] == -1 marks
+  an NA tuple component; level lists are the sorted unique labels
+  (pandas parity, reusing the categorical factorizer) with a
+  first-appearance fallback for mixed-family labels. Lazy lookups: a
+  per-level label→code map shared by derived indexes and a full-tuple→
+  positions map per code layout, both race-safe under sync.Once.
+- `pd.Tuple` label type with pandas-style display ("(AR, Buenos
+  Aires)"; NA components print as NA); `MultiIndex.Names/Levels/Codes/
+  NLevels/Tuple/Tuples/IsNA/PositionsTuple/PositionsPrefix/Take/
+  SlicePos`. Constructors: `pd.MultiIndexFromArrays(names, series...)`,
+  `pd.MultiIndexFromTuples(names, tuples)`, plus the existing
+  `pd.NewMultiIndexFromArrays(arrays, names)` upgraded in place.
+- Multi-column `df.SetIndex("c1", "c2", ...)` builds a MultiIndex
+  (index columns removed; categorical columns contribute labels; NA
+  values become code -1; duplicates allowed). Single-column SetIndex
+  keeps the historical simple-index behavior.
+- `df.ResetIndex()` expands MultiIndex levels into leading typed
+  columns (level names, or level_0/level_1 when unnamed) and restores a
+  RangeIndex; SetIndex→ResetIndex round-trips exactly.
+- Tuple-based Loc: `df.Loc().Tuple("AR", "BA")` (full tuple via the
+  lookup map, duplicates return all rows, nil matches NA) and
+  `df.Loc().TuplePrefix("AR")` (leading levels, code scan). Unknown
+  tuples error with ErrInvalidIndex like unknown labels.
+- Optional groupby index output: `df.GroupBy(a, b).AsIndex(true)` (or
+  `pd.GroupAsIndex(true)`) moves group keys into the index — MultiIndex
+  for multi-key, plain typed index for one key; aggregations and Size
+  honor it; NA key groups keep NA tuple components. The default stays
+  as_index=false (keys as columns), a documented difference from
+  pandas.
+- Concat (preserved index) stacks MultiIndexes with matching level
+  counts into one MultiIndex; mixed shapes fall back to boxed tuples.
+- 8-case pandas golden suite (set/reset roundtrip, sorted levels,
+  codes, loc full tuple + prefix, groupby default + as_index roundtrip,
+  NA components). Goldens: 255 -> 263.
+- 5 fuzz targets (FromArrays, Take, SetReset roundtrip, tuple lookup vs
+  scan, Where preservation) and 8 benchmarks; docs/multiindex.md.
+
+### Improved
+- `index.Take` dispatches MultiIndex to a typed code gather (negative
+  positions become all-NA tuples), so Where/Take/Head/Tail/DropNA/sort
+  preserve the MultiIndex end to end.
+- Join BY index now aligns MultiIndexes through boxed tuple keys (the
+  index-alignment keyable path understands pd.Tuple); merge ON index
+  levels remains unimplemented (use key columns).
+- `MultiIndex.At` returns `pd.Tuple` (previously `[]any`) — same
+  underlying type, nicer display and comparable behavior via keyable.
+
+### Performance (Apple M4, 100K rows, 8x50 label space, measured)
+- Build 5.9 ms; typed Take 0.12 ms / 6 allocs; full tuple lookup
+  ~104 ns; prefix lookup ~93 µs (scan); SetIndex 8.3 ms; ResetIndex
+  3.4 ms; Where preserving the index 0.46 ms; groupby AsIndex 2.4 ms.
+
+### Compatibility
+- Matrix grew from 109 to 119 tracked rows (new MultiIndex rows,
+  including planned ones); coverage moves 94% -> 92% honestly against
+  the larger surface. Level lists sorted like pandas (golden-verified).
+
+### Known limitations
+- No label-range slicing over MultiIndex (needs sorted index); prefix
+  lookup scans; no swaplevel/droplevel/xs; merge on levels not
+  implemented; levels not compacted after Take; Series MultiIndex
+  support is display/Take-level only.
+
 ## v0.7.1 - Categorical Audit and Pre-MultiIndex Hardening
 
 ### Fixed

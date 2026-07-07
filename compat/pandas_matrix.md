@@ -29,11 +29,21 @@ Differences in behavior are documented in [known_differences.md](known_differenc
 | df.loc[...] | df.Loc().Rows(...)/RowsBetween/Cols(...).Get() | partial | inclusive pd.LabelSlice |
 | df.iloc[...] | df.ILoc().Rows(ints/slices).Cols(...).Get() | partial | Go-style [start:stop); no negative step |
 | s.iloc[i] / s.loc[l] / s.iat / s.at | s.ILoc(i) / s.Loc(l) / s.IAt(i) / s.AtLabel(l) | done | |
-| df.set_index("c") | df.SetIndex("c") | partial | single column; multi -> ErrNotImplemented |
-| df.reset_index() | df.ResetIndex() | done | inserts label column like pandas |
+| df.set_index("c") | df.SetIndex("c") | done | single column keeps historical simple index |
+| df.set_index([c1, c2]) | df.SetIndex("c1", "c2") | done | real MultiIndex, levels+codes (v0.8) |
+| df.reset_index() | df.ResetIndex() | done | MultiIndex levels become leading columns (v0.8) |
 | df.reindex(index=...) | df.Reindex(idx) | done | |
 | df.reindex(columns=...) | df.ReindexColumns(...) | done | |
-| pd.MultiIndex.from_arrays | pd.NewMultiIndexFromArrays | partial | construction + display only |
+| pd.MultiIndex.from_arrays | pd.NewMultiIndexFromArrays / pd.MultiIndexFromArrays | done | real levels+codes storage (v0.8) |
+| pd.MultiIndex.from_tuples | pd.MultiIndexFromTuples | done | pd.Tuple components; nil = NA |
+| mi.names / mi.levels / mi.codes | mi.Names() / mi.Levels() / mi.Codes() | done | sorted unique levels, -1 = NA (pandas parity) |
+| df.loc[(a, b)] | df.Loc().Tuple(a, b).Get() | done | lazy lookup map; duplicates return all rows |
+| df.loc[(a, slice(None))] | df.Loc().TuplePrefix(a).Get() | partial | prefix scan (v0.8); no label-range slicing |
+| MultiIndex take/slice | index.Take / mi.SlicePos | done | typed code gather; levels not compacted |
+| groupby(as_index=True) | GroupBy(...).AsIndex(true) | partial | go-pandas defaults to as_index=false (documented) |
+| concat with MultiIndex | pd.Concat | partial | same level count stacks; mixed shapes -> boxed tuples |
+| merge/join on MultiIndex levels | — | planned | join BY index works via boxed tuple alignment |
+| mi.swaplevel / droplevel / xs | — | planned | |
 
 ## Mutation and transforms
 

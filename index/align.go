@@ -99,15 +99,21 @@ func Difference(left, right Index) Index {
 	return fromValues(values, left.Name())
 }
 
-// keyable converts a label to a map-key-safe value ([]any tuples from
-// MultiIndex are not comparable).
+// keyable converts a label to a map-key-safe value (Tuple/[]any labels
+// from MultiIndex are not comparable).
 func keyable(v any) any {
-	if tuple, ok := v.([]any); ok {
-		s := ""
-		for _, t := range tuple {
-			s += "\x00" + fmt.Sprint(t)
-		}
-		return s
+	var tuple []any
+	switch t := v.(type) {
+	case []any:
+		tuple = t
+	case Tuple:
+		tuple = t
+	default:
+		return v
 	}
-	return v
+	s := ""
+	for _, t := range tuple {
+		s += "\x00" + fmt.Sprint(t)
+	}
+	return s
 }

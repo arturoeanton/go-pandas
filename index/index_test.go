@@ -120,7 +120,8 @@ func TestMultiIndex(t *testing.T) {
 	if mi.Len() != 3 || mi.NLevels() != 2 {
 		t.Fatalf("MultiIndex shape: len=%d levels=%d", mi.Len(), mi.NLevels())
 	}
-	tuple := mi.At(1).([]any)
+	// v0.8: At returns index.Tuple (underlying []any).
+	tuple := mi.At(1).(Tuple)
 	if tuple[0] != "AR" || tuple[1] != 2024 {
 		t.Errorf("At(1) = %v", tuple)
 	}

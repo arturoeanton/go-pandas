@@ -192,6 +192,22 @@ s.dt.quarter            s.Dt().Quarter()
 pd.to_datetime(s)       pd.ToDatetime(s)
 ```
 
+## MultiIndex (v0.8)
+
+```python
+df.set_index(["country", "city"])          df.SetIndex("country", "city")
+df.reset_index()                           df.ResetIndex()
+df.index.names / .levels / .codes          mi.Names() / mi.Levels() / mi.Codes()
+                                           (mi, _ := df.Index().(*pd.MultiIndex))
+pd.MultiIndex.from_arrays(arrs, names=n)   pd.MultiIndexFromArrays(names, s1, s2)
+pd.MultiIndex.from_tuples(tups)            pd.MultiIndexFromTuples(names, []pd.Tuple{...})
+df.loc[("AR", "Buenos Aires")]             df.Loc().Tuple("AR", "Buenos Aires").Get()
+df.loc[("AR", slice(None))]                df.Loc().TuplePrefix("AR").Get()
+df.groupby([a, b], as_index=True)          df.GroupBy(a, b).AsIndex(true)
+```
+
+See [multiindex.md](multiindex.md) for storage, limits and differences.
+
 ## Categorical (v0.7)
 
 ```python

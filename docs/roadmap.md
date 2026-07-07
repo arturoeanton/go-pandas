@@ -1,6 +1,23 @@
 # Roadmap
 
-## v0.7.1 (this release) — categorical audit + pre-MultiIndex hardening
+## v0.8 (this release) — real MultiIndex
+
+- Levels + int32 codes storage with sorted unique levels and NA
+  components as code -1 (pandas parity, golden-verified). Constructors
+  from arrays/Series/tuples with pd.Tuple; multi-column SetIndex;
+  ResetIndex level expansion with level_N fallbacks; Loc().Tuple (lazy
+  lookup map) and Loc().TuplePrefix (scan); optional
+  GroupBy(...).AsIndex(true) MultiIndex output; typed Take/SlicePos
+  preserving the index through Where/Take/Head/Tail/DropNA/sort/concat;
+  join-by-index via boxed tuple alignment. Stages 1–5 of the plan below
+  shipped; merge on levels moved to later.
+
+## v0.9 — datetime depth
+
+- to_datetime with explicit formats; Resample basic (sum/mean/count on
+  time buckets).
+
+## v0.7.1 — categorical audit + pre-MultiIndex hardening
 
 - Docs made consistent with v0.7 (removed stale "no typed storage for
   categorical" claims). Implicit categories now require one label
@@ -11,17 +28,10 @@
   any cardinality, race-safe). New targeted tests, fuzz targets and
   high-cardinality benchmarks.
 
-## v0.8 — MultiIndex real (staged)
-
-Implement in stages, each independently shippable and golden-tested:
-
-1. MultiIndex storage and constructors (levels + codes, reusing the
-   categorical factorization machinery).
-2. SetIndex with multiple columns.
-3. ResetIndex from MultiIndex (restore label columns).
-4. Loc by tuple (exact tuple match first; partial/slice later).
-5. GroupBy multi-key output as optional MultiIndex.
-6. Join/merge by MultiIndex later — after 1–5 stabilize.
+The staged v0.8 MultiIndex plan (storage/constructors → multi-column
+SetIndex → ResetIndex → Loc by tuple → optional MultiIndex groupby →
+merge/join later) shipped stages 1–5 in v0.8.0; merge on index levels
+remains for a later phase.
 
 ## v0.7 — typed categorical dtype
 
@@ -98,7 +108,8 @@ Implement in stages, each independently shippable and golden-tested:
 
 ## Next: stronger pandas
 
-- MultiIndex beyond construction; groupby/set_index integration.
+- MultiIndex level operations (swaplevel/droplevel/xs, merge on levels,
+  label-range slicing over sorted indexes).
 - Timezone-aware datetimes; to_datetime with formats.
 - Resample; time-based rolling windows.
 - pivot_table with multiple values/aggfuncs; stack/unstack.
@@ -111,7 +122,7 @@ Implement in stages, each independently shippable and golden-tested:
   (det/inv/solve/eig/SVD).
 - Optional SIMD kernels.
 
-## v0.8 — compatibility expansion
+## Later — compatibility expansion
 
 - Excel and SQL IO.
 - ewm; expanding aggregation parity.
