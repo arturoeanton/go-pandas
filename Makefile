@@ -13,6 +13,10 @@ fuzz:
 compat:
 	python3 compat/python/run_compat_suite.py
 
+# Print coverage numbers computed from the compatibility matrices.
+compat-report:
+	go run ./cmd/compat-report
+
 test:
 	go test ./...
 

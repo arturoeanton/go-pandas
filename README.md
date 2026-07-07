@@ -15,12 +15,15 @@ go-pandas is a compatibility-oriented data toolkit: pandas-style
 names and behavior — verified against **golden outputs generated from
 real pandas and NumPy** (200+ test cases, pandas 2.3 / NumPy 2.0).
 
-## Status
+## Stability status
 
-Experimental. API may change before v1.0. Designed for pandas/NumPy
-**conceptual** compatibility in Go, not Python syntax compatibility.
-Current compatibility: ~85% of tracked APIs in both matrices
-([full report](compat/coverage_report.md)).
+go-pandas v0.2.x is **experimental**. The API is not yet v1 stable.
+Compatibility is conceptual and behavioral where tested, not Python
+syntax compatibility. Current coverage, computed from the matrices with
+`go run ./cmd/compat-report`: pandas 93% of 98 tracked rows, NumPy 88%
+of 52 tracked rows — including partial rows
+([full report](compat/coverage_report.md), [what's intentionally
+different](compat/known_differences.md)).
 
 ## Installation
 
@@ -203,16 +206,31 @@ go test ./fuzz/ -fuzz=FuzzReadCSV -fuzztime=30s
 go run ./examples/basic  # and 7 more example programs
 ```
 
-## Regenerating compatibility goldens
+## Compatibility testing
 
-The golden files under `compat/goldens/` are generated from real
-pandas/NumPy and committed, so `go test ./...` never needs Python.
-To regenerate them (requires python3 with pandas and numpy):
+The compatibility suite uses committed golden files generated from real
+pandas and NumPy — currently **pandas 2.3.3 and NumPy 2.0.2** (the
+versions are recorded inside each golden file). Normal Go tests do not
+require Python:
+
+```bash
+go test ./...          # includes 200+ golden cases
+```
+
+Use `make regen-goldens` or `make compat` to regenerate expected behavior
+(requires python3 with pandas and numpy):
 
 ```bash
 make regen-goldens
-# or the full loop:
+# or regenerate + verify in one step:
 python3 compat/python/run_compat_suite.py
 ```
+
+## Reporting incompatibilities
+
+Found go-pandas behaving differently from pandas/NumPy in a way not
+listed in [compat/known_differences.md](compat/known_differences.md)?
+Open an issue with the Python snippet, its output, and the Go
+translation — golden cases are added from exactly that shape of report.
 
 License: Apache 2.0.

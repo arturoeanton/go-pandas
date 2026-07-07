@@ -1,6 +1,67 @@
 # Changelog
 
-## v0.2.0 (unreleased) — aggressive pandas/NumPy compatibility
+## v0.2.1 - Hardening
+
+Audit-driven patch release: no new subsystems, only correctness fixes,
+stronger tests and honest documentation.
+
+### Fixed
+- `NDArray.Flatten` returned an array sharing the source buffer for
+  contiguous arrays: mutating the "copy" corrupted the source.
+- `Series.Unique` / `NUnique` / `ValueCounts` panicked on unhashable
+  cell values (e.g. the `[]string` cells produced by `Str().Split`);
+  they now hash values safely and unify numeric widths (int 1 ==
+  int64 1 == 1.0, like pandas).
+- Rolling `center=true` masked every window touching the tail; it now
+  clips windows at both edges and lets `MinPeriods` decide, exactly
+  matching `s.rolling(w, center=True, min_periods=m)` (verified against
+  pandas 2.3.3).
+- `Series.Eq(nil)` / `Series.Ne(nil)` now follow the documented uniform
+  rule — every comparison against a missing comparand is false — instead
+  of `Ne` returning true for present values.
+- JSON `columns` orientation sorted row keys lexicographically, so
+  frames with 10+ rows round-tripped in scrambled order ("10" before
+  "2"); keys now sort numerically when they are all integers.
+- The package random source (`Rand`/`Randn`/`RandInt`/`Seed`) is now
+  mutex-guarded; `rand.Rand` is not safe for concurrent use.
+
+### Improved
+- `cmd/compat-report` computes coverage numbers directly from the
+  matrices, so the report can no longer drift from them.
+- `compat/coverage_report.md` regenerated from matrix rows (pandas: 98
+  rows tracked, 91 implemented; NumPy: 52 rows tracked, 46 implemented)
+  with the counting rule stated explicitly.
+
+### Tests
+- NDArray: input-mutation suite over arithmetic/sort/unique/astype/
+  where/mask, Flatten-independence regression, view write-through
+  contract, edge shapes ((0,), (1,), (1,1), (2,1)+(1,2), incompatible).
+- Series: NA-vs-NA comparison semantics, diff with periods 2 and -1,
+  pct_change over a zero denominator (+Inf), value_counts with NA kept/
+  dropped/normalized, unique over unhashable cells, rolling center vs
+  pandas values, shift beyond length.
+- DataFrame: records with missing keys, no-mutation suite for assign/
+  filter/sort/dropna, merge with duplicate keys (inner/left/outer fan-out
+  counts) plus validate failures, groupby NA-key ordering and size-vs-
+  count semantics, pairwise-complete Corr with NA.
+- IO: JSON columns-orientation row order regression, empty-string vs NA
+  under custom NA sets, CSV determinism.
+- `docs_examples_test.go` executes every runnable README/docs snippet.
+
+### Docs
+- README: explicit stability-status and compatibility-testing sections,
+  golden generator versions (pandas 2.3.3 / NumPy 2.0.2), how to report
+  incompatibilities.
+- known_differences: NDArray storage honesty spelled out (logical dtypes
+  over float64 storage in v0.2.x).
+
+### Known limitations
+- NDArray storage remains float64 (typed storage: v0.4).
+- Series arithmetic aligns by position, not labels.
+- MultiIndex, Categorical, timezones, resample, stack/unstack remain
+  unimplemented and return `ErrNotImplemented` where applicable.
+
+## v0.2.0 — aggressive pandas/NumPy compatibility
 
 ### Golden testing
 - 200+ golden cases generated from **real pandas 2.3 / NumPy 2.0**

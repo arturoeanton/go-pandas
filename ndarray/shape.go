@@ -52,7 +52,9 @@ func (a *NDArray) Reshape(shape ...int) (*NDArray, error) {
 
 // Flatten returns a 1-D copy of the array.
 func (a *NDArray) Flatten() *NDArray {
-	return newOwned(a.Data(), []int{a.Size()})
+	// Data() may alias the backing buffer for contiguous arrays; copy so
+	// the result is independent, as documented.
+	return newOwned(append([]float64(nil), a.Data()...), []int{a.Size()})
 }
 
 // Ravel returns a 1-D view when the array is contiguous, otherwise a copy.

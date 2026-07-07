@@ -1,16 +1,29 @@
 package ndarray
 
-import "math/rand"
+import (
+	"math/rand"
+	"sync"
+)
 
-// rng is the package random source. Seed replaces it for reproducibility.
-var rng = rand.New(rand.NewSource(rand.Int63()))
+// rng is the package random source. rand.Rand is not safe for concurrent
+// use, so every access goes through rngMu.
+var (
+	rngMu sync.Mutex
+	rng   = rand.New(rand.NewSource(rand.Int63()))
+)
 
 // Seed makes the random constructors deterministic, like np.random.seed.
-func Seed(seed int64) { rng = rand.New(rand.NewSource(seed)) }
+func Seed(seed int64) {
+	rngMu.Lock()
+	defer rngMu.Unlock()
+	rng = rand.New(rand.NewSource(seed))
+}
 
 // Rand returns an array of uniform random samples in [0, 1).
 func Rand(shape ...int) *NDArray {
 	a := Zeros(shape...)
+	rngMu.Lock()
+	defer rngMu.Unlock()
 	for i := range a.data {
 		a.data[i] = rng.Float64()
 	}
@@ -20,6 +33,8 @@ func Rand(shape ...int) *NDArray {
 // Randn returns an array of standard normal samples.
 func Randn(shape ...int) *NDArray {
 	a := Zeros(shape...)
+	rngMu.Lock()
+	defer rngMu.Unlock()
 	for i := range a.data {
 		a.data[i] = rng.NormFloat64()
 	}
@@ -30,6 +45,8 @@ func Randn(shape ...int) *NDArray {
 func RandInt(low, high int, shape ...int) *NDArray {
 	a := Zeros(shape...)
 	span := high - low
+	rngMu.Lock()
+	defer rngMu.Unlock()
 	for i := range a.data {
 		a.data[i] = float64(low + rng.Intn(span))
 	}

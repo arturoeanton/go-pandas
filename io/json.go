@@ -6,6 +6,7 @@ import (
 	stdio "io"
 	"os"
 	"sort"
+	"strconv"
 
 	"github.com/arturoeanton/go-pandas/errs"
 )
@@ -77,7 +78,7 @@ func ReadJSONTableReader(r stdio.Reader, opts ...JSONOption) (*Table, error) {
 		for k := range keySet {
 			keys = append(keys, k)
 		}
-		sort.Strings(keys)
+		sortRowKeys(keys)
 		table := &Table{Columns: columns}
 		for _, k := range keys {
 			row := make([]any, len(columns))
@@ -89,6 +90,27 @@ func ReadJSONTableReader(r stdio.Reader, opts ...JSONOption) (*Table, error) {
 		return table, nil
 	}
 	return nil, errs.NotImplemented("JSON orient " + o.Orient)
+}
+
+// sortRowKeys orders JSON row keys numerically when they all parse as
+// integers (pandas writes RangeIndex labels as "0", "1", ..., "10" — a
+// plain string sort would put "10" before "2").
+func sortRowKeys(keys []string) {
+	nums := make(map[string]int, len(keys))
+	allInts := true
+	for _, k := range keys {
+		n, err := strconv.Atoi(k)
+		if err != nil {
+			allInts = false
+			break
+		}
+		nums[k] = n
+	}
+	if allInts {
+		sort.Slice(keys, func(a, b int) bool { return nums[keys[a]] < nums[keys[b]] })
+		return
+	}
+	sort.Strings(keys)
 }
 
 // recordsToTable flattens JSON objects into a Table with sorted column

@@ -3,7 +3,9 @@ package series
 import (
 	"fmt"
 	"sort"
+	"strconv"
 
+	"github.com/arturoeanton/go-pandas/dtype"
 	"github.com/arturoeanton/go-pandas/expr"
 	"github.com/arturoeanton/go-pandas/index"
 )
@@ -60,10 +62,22 @@ func (s *Series) SortIndex(ascending bool) *Series {
 	return out
 }
 
+// hashKey normalizes a value into a map-safe string key: numeric widths
+// collapse (int 1 == int64 1 == 1.0, matching pandas), and unhashable
+// values (e.g. []string cells from Str().Split) never panic.
+func hashKey(v any) string {
+	if f, ok := dtype.AsFloat(v); ok {
+		if _, isBool := v.(bool); !isBool {
+			return "n\x00" + strconv.FormatFloat(f, 'g', -1, 64)
+		}
+	}
+	return fmt.Sprintf("%T\x00%v", v, v)
+}
+
 // Unique returns the distinct values in first-seen order (missing values
 // contribute a single NA entry, like pandas).
 func (s *Series) Unique() *Series {
-	seen := make(map[any]bool)
+	seen := make(map[string]bool)
 	sawNA := false
 	var values []any
 	for i, v := range s.data {
@@ -74,8 +88,9 @@ func (s *Series) Unique() *Series {
 			}
 			continue
 		}
-		if !seen[v] {
-			seen[v] = true
+		k := hashKey(v)
+		if !seen[k] {
+			seen[k] = true
 			values = append(values, v)
 		}
 	}
@@ -84,14 +99,14 @@ func (s *Series) Unique() *Series {
 
 // NUnique counts the distinct values; dropNA excludes the NA entry.
 func (s *Series) NUnique(dropNA bool) int {
-	seen := make(map[any]bool)
+	seen := make(map[string]bool)
 	sawNA := false
 	for i, v := range s.data {
 		if s.mask[i] {
 			sawNA = true
 			continue
 		}
-		seen[v] = true
+		seen[hashKey(v)] = true
 	}
 	n := len(seen)
 	if sawNA && !dropNA {
@@ -136,7 +151,7 @@ func (s *Series) ValueCounts(opts ...ValueCountOption) *Series {
 	for _, f := range opts {
 		f(&o)
 	}
-	counts := make(map[any]int)
+	counts := make(map[string]int)
 	var order []any
 	naCount := 0
 	total := 0
@@ -146,21 +161,23 @@ func (s *Series) ValueCounts(opts ...ValueCountOption) *Series {
 			total++
 			continue
 		}
-		if _, ok := counts[v]; !ok {
+		k := hashKey(v)
+		if _, ok := counts[k]; !ok {
 			order = append(order, v)
 		}
-		counts[v]++
+		counts[k]++
 		total++
 	}
+	naLabel := any("<NA>")
 	if !o.DropNA && naCount > 0 {
-		order = append(order, "<NA>")
-		counts["<NA>"] = naCount
+		order = append(order, naLabel)
+		counts[hashKey(naLabel)] += naCount
 	}
 	sort.SliceStable(order, func(a, b int) bool {
 		if o.Ascending {
-			return counts[order[a]] < counts[order[b]]
+			return counts[hashKey(order[a])] < counts[hashKey(order[b])]
 		}
-		return counts[order[a]] > counts[order[b]]
+		return counts[hashKey(order[a])] > counts[hashKey(order[b])]
 	})
 	labels := make([]string, len(order))
 	values := make([]any, len(order))
@@ -171,9 +188,9 @@ func (s *Series) ValueCounts(opts ...ValueCountOption) *Series {
 	for i, v := range order {
 		labels[i] = fmt.Sprint(v)
 		if o.Normalize {
-			values[i] = float64(counts[v]) / denom
+			values[i] = float64(counts[hashKey(v)]) / denom
 		} else {
-			values[i] = counts[v]
+			values[i] = counts[hashKey(v)]
 		}
 	}
 	name := "count"

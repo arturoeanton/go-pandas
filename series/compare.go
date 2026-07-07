@@ -1,6 +1,7 @@
 package series
 
 import (
+	"github.com/arturoeanton/go-pandas/dtype"
 	"github.com/arturoeanton/go-pandas/expr"
 )
 
@@ -15,10 +16,20 @@ func (s *Series) cmp(name string, f func(v any) bool) *Series {
 	})
 }
 
+// allFalse implements the uniform NA comparison rule: any comparison
+// against a missing comparand is false everywhere (including Ne — a
+// documented difference from pandas' NaN != x).
+func (s *Series) allFalse() *Series {
+	return s.boolSeries(s.name, func(int) bool { return false })
+}
+
 // Eq returns s == v elementwise. v may be a scalar or another *Series.
 func (s *Series) Eq(v any) *Series {
 	if o, ok := v.(*Series); ok {
 		return s.cmpSeries(o, func(a, b any) bool { return expr.EqualValues(a, b) })
+	}
+	if dtype.IsNA(v) {
+		return s.allFalse()
 	}
 	return s.cmp("eq", func(x any) bool { return expr.EqualValues(x, v) })
 }
@@ -27,6 +38,9 @@ func (s *Series) Eq(v any) *Series {
 func (s *Series) Ne(v any) *Series {
 	if o, ok := v.(*Series); ok {
 		return s.cmpSeries(o, func(a, b any) bool { return !expr.EqualValues(a, b) })
+	}
+	if dtype.IsNA(v) {
+		return s.allFalse()
 	}
 	return s.cmp("ne", func(x any) bool { return !expr.EqualValues(x, v) })
 }

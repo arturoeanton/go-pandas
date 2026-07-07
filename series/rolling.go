@@ -76,19 +76,14 @@ func (r *RollingSeries) aggregate(f func(window []float64) float64) (*Series, er
 	for i := 0; i < n; i++ {
 		end := i + offset // inclusive right edge of the window
 		start := end - r.window + 1
-		if end >= n {
-			mask[i] = true
-			continue
-		}
+		// Windows are clipped at both edges; MinPeriods alone decides
+		// whether a clipped window produces a value (pandas semantics,
+		// including centered windows at the tail).
 		var buf []float64
-		for j := start; j <= end; j++ {
-			if j >= 0 && present[j] {
+		for j := max(start, 0); j <= min(end, n-1); j++ {
+			if present[j] {
 				buf = append(buf, floats[j])
 			}
-		}
-		if start < 0 && r.opts.MinPeriods >= r.window {
-			mask[i] = true
-			continue
 		}
 		if len(buf) < r.opts.MinPeriods {
 			mask[i] = true

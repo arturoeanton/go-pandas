@@ -1,52 +1,66 @@
 # go-pandas compatibility report
 
-Counts track the conceptual APIs listed in the matrices; "implemented"
-includes partial implementations that cover the common use (a `partial`
-status in the matrix). Golden verification: 201 test cases generated from
-pandas 2.3 / NumPy 2.0 (see `compat/goldens/`), all passing.
+The numbers below are computed **directly from the matrix rows** in
+`pandas_matrix.md` / `numpy_matrix.md`: `done` and `partial` rows count as
+implemented; `planned` and `not_supported` do not. Reproduce them with:
 
-## pandas compatibility
+```bash
+go run ./cmd/compat-report
+```
 
-| Area | APIs tracked | APIs implemented | Compatibility |
+Behavioral verification: 200+ golden test cases generated from real
+pandas 2.3.3 / NumPy 2.0.2 (`compat/goldens/`), all passing. A matrix row
+can group several closely-related pandas/NumPy APIs, so these counts are
+rows tracked, not individual Python functions.
+
+## pandas compatibility (98 rows tracked, 91 implemented, 93%)
+
+| Area | Rows tracked | Implemented | Coverage |
 |---|---:|---:|---:|
-| Series core | 42 | 38 | 90% |
-| DataFrame core | 45 | 40 | 89% |
-| Indexing (loc/iloc/index) | 20 | 14 | 70% |
-| GroupBy | 16 | 15 | 94% |
-| Merge/join/concat | 15 | 13 | 87% |
-| Missing values | 14 | 14 | 100% |
-| IO | 18 | 12 | 67% |
-| Reshape | 8 | 5 | 63% |
-| Window (rolling/expanding) | 14 | 12 | 86% |
-| Datetime | 18 | 14 | 78% |
-| String accessor | 14 | 13 | 93% |
-| **Total** | **224** | **190** | **85%** |
+| Constructors and core attributes | 9 | 9 | 100% |
+| Selection and indexing | 13 | 12 | 92% |
+| Mutation and transforms | 15 | 15 | 100% |
+| Missing values | 5 | 5 | 100% |
+| Series | 15 | 15 | 100% |
+| String and datetime accessors | 11 | 10 | 90% |
+| GroupBy | 7 | 6 | 85% |
+| Merge / join / concat | 5 | 5 | 100% |
+| Reshape and window | 9 | 6 | 66% |
+| IO | 9 | 8 | 88% |
 
 Not implemented in the pandas area: MultiIndex operations, Categorical,
-timezone handling, resample, stack/unstack, eval, Excel/SQL/Parquet IO.
+timezone handling (`tz_localize`/`tz_convert`), resample, stack/unstack,
+eval, ewm, groupby transform/filter, Parquet/Excel/SQL IO.
 
-## NumPy compatibility
+Note that "implemented" includes `partial` rows — 17 of the 91 pandas
+rows are partial (e.g. Query grammar subset, single-column SetIndex,
+PivotTable with one aggregation). See the matrix notes for each.
 
-| Area | APIs tracked | APIs implemented | Compatibility |
+## NumPy compatibility (52 rows tracked, 46 implemented, 88%)
+
+| Area | Rows tracked | Implemented | Coverage |
 |---|---:|---:|---:|
-| ndarray core (shape/views) | 16 | 15 | 94% |
-| constructors | 16 | 16 | 100% |
-| broadcasting | 6 | 6 | 100% |
-| reductions | 14 | 13 | 93% |
-| ufuncs | 26 | 24 | 92% |
-| linalg | 10 | 5 | 50% |
-| indexing | 12 | 10 | 83% |
-| sorting/set ops | 6 | 4 | 67% |
-| random | 8 | 4 | 50% |
-| **Total** | **114** | **97** | **85%** |
+| Constructors | 7 | 7 | 100% |
+| Shape, views and joining | 8 | 8 | 100% |
+| Indexing | 8 | 7 | 87% |
+| Math | 9 | 9 | 100% |
+| Reductions | 6 | 5 | 83% |
+| Sorting and set operations | 4 | 3 | 75% |
+| Linear algebra | 5 | 3 | 60% |
+| Random | 5 | 4 | 80% |
 
 Not implemented in the NumPy area: det/inv/solve/eig/SVD (planned via the
-gonum adapter), fancy multi-axis reductions (`keepdims`, axis tuples),
-negative slice steps, searchsorted/isin, most random distributions,
-typed physical storage (logical dtypes only).
+gonum adapter), keepdims/axis tuples, fancy integer indexing, negative
+slice steps, searchsorted/isin, random distributions beyond
+rand/randn/randint.
 
-## How the numbers are produced
+**Storage honesty:** NDArrays store float64 physically in v0.2.x. The
+typed constructors and `Astype` carry logical dtype metadata and
+normalize values; integers above 2^53 lose precision. See
+[known_differences.md](known_differences.md).
 
-Each matrix row in `pandas_matrix.md` / `numpy_matrix.md` is one tracked
-API; `done` and `partial` count as implemented, `planned` and
-`not_supported` do not. Update the matrices and this report together.
+## How to update
+
+Edit the matrices, then run `go run ./cmd/compat-report` and refresh the
+tables above. Do not edit the numbers here by hand without re-running the
+tool.

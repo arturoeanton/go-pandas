@@ -39,9 +39,12 @@ root-function parity). Inside expressions use the `*Expr` suffix:
   `time.Time` (nanosecond precision, no fixed unit).
 - Every Series is nullable via its mask; pandas' "Int64" vs "int64"
   distinction collapses to `int64` + mask.
-- v0.2 NDArrays store float64 physically. Typed constructors and
-  `Astype` record the logical dtype and normalize values, but large
-  int64 values above 2^53 lose precision.
+- v0.2 NDArrays store float64 physically. `ArrayInt`, `ArrayInt64` and
+  `ArrayFloat32` currently preserve logical dtype metadata but the
+  internal numeric storage is float64 in v0.2.x; `Astype` converts values
+  (integer truncation, bool normalization) and updates the metadata
+  without changing the physical representation. Large int64 values above
+  2^53 lose precision. True typed storage is the v0.4 milestone.
 - Map-based DataFrame constructors order columns alphabetically unless
   `pd.WithColumnOrder` is given (Go maps are unordered; pandas preserves
   dict insertion order).
