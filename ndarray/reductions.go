@@ -6,11 +6,12 @@ import (
 	"github.com/arturoeanton/go-pandas/dtype"
 )
 
-// reduceAll folds every element with f starting from init.
+// reduceAll folds every element with f starting from init. Numeric only.
 func (a *NDArray) reduceAll(init float64, f func(acc, x float64) float64) float64 {
+	load := a.mustFloatLoader("reduction")
 	acc := init
 	a.iter(func(off int) {
-		acc = f(acc, a.data[off])
+		acc = f(acc, load(off))
 	})
 	return acc
 }
@@ -51,10 +52,11 @@ func (a *NDArray) VarAll() float64 {
 	if n == 0 {
 		return math.NaN()
 	}
+	load := a.mustFloatLoader("var")
 	mean := a.MeanAll()
 	acc := 0.0
 	a.iter(func(off int) {
-		d := a.data[off] - mean
+		d := load(off) - mean
 		acc += d * d
 	})
 	return acc / float64(n)
@@ -68,19 +70,24 @@ func scalarArray(v float64) *NDArray {
 	return &NDArray{data: []float64{v}, shape: []int{}, strides: []int{}, dtype: dtype.Float64}
 }
 
-// reduceAxis reduces along one axis with a running fold. finish
-// post-processes each accumulated value (e.g. divide by count for mean).
-func (a *NDArray) reduceAxis(axis int, init float64, f func(acc, x float64) float64, finish func(acc float64) float64) (*NDArray, error) {
+// reduceAxis reduces along one axis with a running fold in float64,
+// wrapping the result into outDT storage. finish post-processes each
+// accumulated value (e.g. divide by count for mean).
+func (a *NDArray) reduceAxis(axis int, outDT dtype.DType, init float64, f func(acc, x float64) float64, finish func(acc float64) float64) (*NDArray, error) {
 	if err := a.checkAxis(axis); err != nil {
 		return nil, err
 	}
+	load := a.mustFloatLoader("reduction")
 	outShape := make([]int, 0, len(a.shape)-1)
 	for d, s := range a.shape {
 		if d != axis {
 			outShape = append(outShape, s)
 		}
 	}
-	out := Full(init, outShape...)
+	work := make([]float64, shapeSize(outShape))
+	for i := range work {
+		work[i] = init
+	}
 	outStrides := computeStrides(outShape)
 	coords := make([]int, len(a.shape))
 	size := a.Size()
@@ -98,7 +105,7 @@ func (a *NDArray) reduceAxis(axis int, init float64, f func(acc, x float64) floa
 			outPos += c * outStrides[k]
 			k++
 		}
-		out.data[outPos] = f(out.data[outPos], a.data[off])
+		work[outPos] = f(work[outPos], load(off))
 		// increment coords
 		d := len(coords) - 1
 		for d >= 0 {
@@ -111,47 +118,64 @@ func (a *NDArray) reduceAxis(axis int, init float64, f func(acc, x float64) floa
 		}
 	}
 	if finish != nil {
-		for i := range out.data {
-			out.data[i] = finish(out.data[i])
+		for i := range work {
+			work[i] = finish(work[i])
 		}
 	}
-	return out, nil
+	data := allocData(outDT, len(work))
+	store := floatStore(data)
+	for i, v := range work {
+		store(i, v)
+	}
+	return newDense(data, outShape, outDT), nil
+}
+
+// intReductionDType keeps integer dtype for closed reductions.
+func (a *NDArray) intReductionDType() dtype.DType {
+	if dtype.IsInteger(a.dtype) {
+		return a.dtype
+	}
+	if a.dtype == dtype.Bool {
+		return dtype.Int
+	}
+	return dtype.Float64
 }
 
 // Sum reduces with addition. Without axis the result is a 0-d array with
-// the total; with one axis the result drops that axis.
+// the total; with one axis the result drops that axis. Integer arrays
+// keep an integer result dtype.
 func (a *NDArray) Sum(axis ...int) (*NDArray, error) {
 	if len(axis) == 0 {
 		return scalarArray(a.SumAll()), nil
 	}
-	return a.reduceAxis(axis[0], 0, func(acc, x float64) float64 { return acc + x }, nil)
+	return a.reduceAxis(axis[0], a.intReductionDType(), 0, func(acc, x float64) float64 { return acc + x }, nil)
 }
 
-// Mean reduces with the arithmetic mean.
+// Mean reduces with the arithmetic mean (always floating point).
 func (a *NDArray) Mean(axis ...int) (*NDArray, error) {
 	if len(axis) == 0 {
 		return scalarArray(a.MeanAll()), nil
 	}
 	n := float64(a.shape[axis[0]])
-	return a.reduceAxis(axis[0], 0,
+	return a.reduceAxis(axis[0], dtype.Float64, 0,
 		func(acc, x float64) float64 { return acc + x },
 		func(acc float64) float64 { return acc / n })
 }
 
-// Min reduces with the minimum.
+// Min reduces with the minimum, keeping integer dtypes.
 func (a *NDArray) Min(axis ...int) (*NDArray, error) {
 	if len(axis) == 0 {
 		return scalarArray(a.MinAll()), nil
 	}
-	return a.reduceAxis(axis[0], math.Inf(1), math.Min, nil)
+	return a.reduceAxis(axis[0], a.intReductionDType(), math.Inf(1), math.Min, nil)
 }
 
-// Max reduces with the maximum.
+// Max reduces with the maximum, keeping integer dtypes.
 func (a *NDArray) Max(axis ...int) (*NDArray, error) {
 	if len(axis) == 0 {
 		return scalarArray(a.MaxAll()), nil
 	}
-	return a.reduceAxis(axis[0], math.Inf(-1), math.Max, nil)
+	return a.reduceAxis(axis[0], a.intReductionDType(), math.Inf(-1), math.Max, nil)
 }
 
 // Var reduces with the population variance (ddof=0).
@@ -191,18 +215,20 @@ func (a *NDArray) Std(axis ...int) (*NDArray, error) {
 // argReduce finds the flat index (along the axis or globally) selected by
 // better.
 func (a *NDArray) argReduce(axis []int, better func(cur, best float64) bool) (*NDArray, error) {
+	load := a.mustFloatLoader("argmin/argmax")
 	if len(axis) == 0 {
 		best := math.NaN()
 		bestPos := 0
 		pos := 0
 		a.iter(func(off int) {
-			if pos == 0 || better(a.data[off], best) {
-				best = a.data[off]
+			if pos == 0 || better(load(off), best) {
+				best = load(off)
 				bestPos = pos
 			}
 			pos++
 		})
-		return scalarArray(float64(bestPos)), nil
+		out := newDense([]int64{int64(bestPos)}, []int{}, dtype.Int64)
+		return out, nil
 	}
 	ax := axis[0]
 	if err := a.checkAxis(ax); err != nil {
@@ -214,7 +240,7 @@ func (a *NDArray) argReduce(axis []int, better func(cur, best float64) bool) (*N
 			outShape = append(outShape, s)
 		}
 	}
-	out := Zeros(outShape...)
+	outData := make([]int64, shapeSize(outShape))
 	bestVals := make([]float64, shapeSize(outShape))
 	seen := make([]bool, shapeSize(outShape))
 	outStrides := computeStrides(outShape)
@@ -234,11 +260,11 @@ func (a *NDArray) argReduce(axis []int, better func(cur, best float64) bool) (*N
 			outPos += c * outStrides[k]
 			k++
 		}
-		v := a.data[off]
+		v := load(off)
 		if !seen[outPos] || better(v, bestVals[outPos]) {
 			seen[outPos] = true
 			bestVals[outPos] = v
-			out.data[outPos] = float64(coords[ax])
+			outData[outPos] = int64(coords[ax])
 		}
 		d := len(coords) - 1
 		for d >= 0 {
@@ -250,15 +276,15 @@ func (a *NDArray) argReduce(axis []int, better func(cur, best float64) bool) (*N
 			d--
 		}
 	}
-	return out, nil
+	return newDense(outData, outShape, dtype.Int64), nil
 }
 
-// ArgMin returns the index of the minimum (flat, or per-axis).
+// ArgMin returns the index of the minimum (flat, or per-axis) as Int64.
 func (a *NDArray) ArgMin(axis ...int) (*NDArray, error) {
 	return a.argReduce(axis, func(cur, best float64) bool { return cur < best })
 }
 
-// ArgMax returns the index of the maximum (flat, or per-axis).
+// ArgMax returns the index of the maximum (flat, or per-axis) as Int64.
 func (a *NDArray) ArgMax(axis ...int) (*NDArray, error) {
 	return a.argReduce(axis, func(cur, best float64) bool { return cur > best })
 }

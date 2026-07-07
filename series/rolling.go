@@ -46,6 +46,32 @@ func (s *Series) Rolling(window int, opts ...RollingOption) *RollingSeries {
 	return &RollingSeries{s: s, window: window, opts: o}
 }
 
+// numericBuffer extracts float values plus a present flag per position.
+func numericBuffer(s *Series) ([]float64, []bool, error) {
+	if fs, mask, ok := s.col.Float64s(); ok {
+		present := make([]bool, len(fs))
+		for i := range present {
+			present[i] = !mask[i]
+		}
+		return fs, present, nil
+	}
+	n := s.Len()
+	floats := make([]float64, n)
+	present := make([]bool, n)
+	for i := 0; i < n; i++ {
+		if s.col.IsNA(i) {
+			continue
+		}
+		v, ok := dtype.AsFloat(s.col.Value(i))
+		if !ok {
+			return nil, nil, fmt.Errorf("%w: window op on non-numeric value %T", errs.ErrTypeMismatch, s.col.Value(i))
+		}
+		floats[i] = v
+		present[i] = true
+	}
+	return floats, present, nil
+}
+
 // aggregate slides the window and reduces each one with f (which receives
 // only the present values in the window).
 func (r *RollingSeries) aggregate(f func(window []float64) float64) (*Series, error) {
@@ -54,20 +80,11 @@ func (r *RollingSeries) aggregate(f func(window []float64) float64) (*Series, er
 	}
 	src := r.s
 	n := src.Len()
-	floats := make([]float64, n)
-	present := make([]bool, n)
-	for i := 0; i < n; i++ {
-		if src.mask[i] {
-			continue
-		}
-		v, ok := dtype.AsFloat(src.data[i])
-		if !ok {
-			return nil, fmt.Errorf("%w: rolling on non-numeric value %T", errs.ErrTypeMismatch, src.data[i])
-		}
-		floats[i] = v
-		present[i] = true
+	floats, present, err := numericBuffer(src)
+	if err != nil {
+		return nil, err
 	}
-	data := make([]any, n)
+	data := make([]float64, n)
 	mask := make([]bool, n)
 	offset := 0
 	if r.opts.Center {
@@ -91,13 +108,7 @@ func (r *RollingSeries) aggregate(f func(window []float64) float64) (*Series, er
 		}
 		data[i] = f(buf)
 	}
-	return &Series{
-		name:  src.name,
-		dtype: dtype.Float64,
-		data:  data,
-		mask:  mask,
-		index: src.index.Clone(),
-	}, nil
+	return floatColumnSeries(src.name, data, mask, src.index), nil
 }
 
 // Sum returns the rolling sum.
@@ -181,29 +192,26 @@ func (s *Series) Expanding(minPeriods ...int) *ExpandingSeries {
 }
 
 func (e *ExpandingSeries) aggregate(f func(window []float64) float64) (*Series, error) {
-	r := &RollingSeries{s: e.s, window: e.s.Len(), opts: RollingOptions{MinPeriods: e.minPeriods}}
-	// An expanding window is a rolling window as large as the series with
-	// relaxed min periods; reuse the same machinery.
 	src := e.s
 	n := src.Len()
-	data := make([]any, n)
+	floats, present, err := numericBuffer(src)
+	if err != nil {
+		return nil, err
+	}
+	data := make([]float64, n)
 	mask := make([]bool, n)
 	var buf []float64
 	for i := 0; i < n; i++ {
-		if !src.mask[i] {
-			if v, ok := dtype.AsFloat(src.data[i]); ok {
-				buf = append(buf, v)
-			} else {
-				return nil, fmt.Errorf("%w: expanding on non-numeric value %T", errs.ErrTypeMismatch, src.data[i])
-			}
+		if present[i] {
+			buf = append(buf, floats[i])
 		}
-		if len(buf) < r.opts.MinPeriods {
+		if len(buf) < e.minPeriods {
 			mask[i] = true
 			continue
 		}
 		data[i] = f(buf)
 	}
-	return &Series{name: src.name, dtype: dtype.Float64, data: data, mask: mask, index: src.index.Clone()}, nil
+	return floatColumnSeries(src.name, data, mask, src.index), nil
 }
 
 // Sum returns the expanding sum.

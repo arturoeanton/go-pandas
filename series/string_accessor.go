@@ -16,23 +16,18 @@ func (s *Series) Str() *StringAccessor { return &StringAccessor{s: s} }
 // values yield missing results.
 func (sa *StringAccessor) mapString(f func(s string) any) *Series {
 	src := sa.s
-	data := make([]any, src.Len())
-	mask := make([]bool, src.Len())
-	for i := range src.data {
-		if src.mask[i] {
-			mask[i] = true
+	values := make([]any, src.Len())
+	for i := 0; i < src.Len(); i++ {
+		if src.col.IsNA(i) {
 			continue
 		}
-		str, ok := src.data[i].(string)
+		str, ok := src.col.Value(i).(string)
 		if !ok {
-			mask[i] = true
 			continue
 		}
-		data[i] = f(str)
+		values[i] = f(str)
 	}
-	values := dataWithMask(data, mask)
-	out := NewSeries(src.name, values, WithIndex(src.index))
-	return out
+	return NewSeries(src.name, values, WithIndex(src.index))
 }
 
 // Contains reports whether each string contains substr.

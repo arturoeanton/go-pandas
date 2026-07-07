@@ -9,125 +9,200 @@ import (
 	"github.com/arturoeanton/go-pandas/errs"
 )
 
-// Typed constructors ------------------------------------------------------
-// v0.2 keeps float64 storage; these constructors record the logical dtype
-// while converting values, so a.DType() round-trips (see known
-// differences).
+// Typed constructors — since v0.3 these store real typed slices.
 
-func typedArray[T Number](data []T, dt dtype.DType) *NDArray {
-	a := ArrayOf(data)
-	a.dtype = dt
-	return a
-}
+// ArrayInt builds a 1-D array backed by []int.
+func ArrayInt(data []int) *NDArray { return ArrayOf(data) }
 
-// ArrayInt builds a 1-D array from ints.
-func ArrayInt(data []int) *NDArray { return typedArray(data, dtype.Int) }
+// ArrayInt64 builds a 1-D array backed by []int64.
+func ArrayInt64(data []int64) *NDArray { return ArrayOf(data) }
 
-// ArrayInt64 builds a 1-D array from int64s.
-func ArrayInt64(data []int64) *NDArray { return typedArray(data, dtype.Int64) }
+// ArrayFloat32 builds a 1-D array backed by []float32.
+func ArrayFloat32(data []float32) *NDArray { return ArrayOf(data) }
 
-// ArrayFloat32 builds a 1-D array from float32s.
-func ArrayFloat32(data []float32) *NDArray { return typedArray(data, dtype.Float32) }
-
-// ArrayFloat64 builds a 1-D array from float64s.
+// ArrayFloat64 builds a 1-D array backed by []float64.
 func ArrayFloat64(data []float64) *NDArray { return Array(data) }
 
-// ArrayBool builds a 1-D array from bools (true -> 1, false -> 0).
-func ArrayBool(data []bool) *NDArray {
-	out := make([]float64, len(data))
-	for i, v := range data {
-		if v {
-			out[i] = 1
-		}
-	}
-	a := Array(out)
-	a.dtype = dtype.Bool
-	return a
-}
+// ArrayBool builds a 1-D array backed by []bool.
+func ArrayBool(data []bool) *NDArray { return ArrayOf(data) }
 
-// Astype returns a copy with the target logical dtype; integer targets
-// truncate values. Storage remains float64 in v0.2.
+// ArrayString builds a 1-D array backed by []string. String arrays
+// support comparisons, Sort, Unique, Take, views and Astype to numeric
+// via parsing; arithmetic and numeric ufuncs return errors (or panic for
+// the error-free ufunc methods).
+func ArrayString(data []string) *NDArray { return ArrayOf(data) }
+
+// Astype converts the array to a new dtype, changing the real backing
+// storage (v0.3). Float to integer truncates toward zero; bool targets
+// store v != 0; string sources parse numerics; numeric to string
+// formats. Invalid conversions return errors.
 func (a *NDArray) Astype(dt dtype.DType) (*NDArray, error) {
-	if !dtype.IsNumeric(dt) && !dtype.IsBool(dt) {
+	switch dt {
+	case dtype.Bool, dtype.Int, dtype.Int64, dtype.Float32, dtype.Float64, dtype.String:
+	default:
 		return nil, fmt.Errorf("%w: NDArray.Astype to %s", errs.ErrInvalidDType, dt)
 	}
-	out := a.Copy()
-	out.dtype = dt
-	if dtype.IsInteger(dt) {
-		for i := range out.data {
-			out.data[i] = math.Trunc(out.data[i])
-		}
-	}
-	if dt == dtype.Bool {
-		for i := range out.data {
-			if out.data[i] != 0 {
-				out.data[i] = 1
+	data := allocData(dt, a.Size())
+	if dt == dtype.String {
+		out := data.([]string)
+		i := 0
+		var castErr error
+		a.iter(func(off int) {
+			if castErr != nil {
+				return
 			}
+			c, err := dtype.CastValue(a.valueAt(off), dtype.String)
+			if err != nil {
+				castErr = err
+				return
+			}
+			out[i] = c.(string)
+			i++
+		})
+		if castErr != nil {
+			return nil, castErr
 		}
+		return newDense(data, a.shape, dt), nil
 	}
-	return out, nil
+	store := floatStore(data)
+	if load := a.floatLoader(); load != nil {
+		// numeric -> numeric: no boxing
+		i := 0
+		a.iter(func(off int) {
+			store(i, load(off))
+			i++
+		})
+		return newDense(data, a.shape, dt), nil
+	}
+	// string -> numeric: parse each element
+	loadStr := a.stringLoader()
+	i := 0
+	var castErr error
+	a.iter(func(off int) {
+		if castErr != nil {
+			return
+		}
+		c, err := dtype.CastValue(loadStr(off), dtype.Float64)
+		if err != nil {
+			castErr = err
+			return
+		}
+		store(i, c.(float64))
+		i++
+	})
+	if castErr != nil {
+		return nil, castErr
+	}
+	return newDense(data, a.shape, dt), nil
 }
 
 // Sorting ------------------------------------------------------------------
 
-// Sort returns a copy sorted along the last axis (np.sort default). For a
-// 1-D array this is a plain ascending sort.
+func sortSegment(data any, start, end int) {
+	switch d := data.(type) {
+	case []float64:
+		sort.Float64s(d[start:end])
+	case []float32:
+		seg := d[start:end]
+		sort.Slice(seg, func(i, j int) bool { return seg[i] < seg[j] })
+	case []int:
+		sort.Ints(d[start:end])
+	case []int64:
+		seg := d[start:end]
+		sort.Slice(seg, func(i, j int) bool { return seg[i] < seg[j] })
+	case []string:
+		sort.Strings(d[start:end])
+	case []bool:
+		seg := d[start:end]
+		falses := 0
+		for _, v := range seg {
+			if !v {
+				falses++
+			}
+		}
+		for i := range seg {
+			seg[i] = i >= falses
+		}
+	}
+}
+
+// Sort returns a copy sorted along the last axis (np.sort default),
+// preserving the dtype. Strings sort lexicographically.
 func (a *NDArray) Sort() *NDArray {
 	out := a.Copy()
-	if out.NDim() == 0 {
+	if out.NDim() == 0 || out.Size() == 0 {
 		return out
 	}
 	rowLen := out.shape[len(out.shape)-1]
 	if rowLen == 0 {
 		return out
 	}
-	for start := 0; start < len(out.data); start += rowLen {
-		sort.Float64s(out.data[start : start+rowLen])
+	for start := 0; start < out.Size(); start += rowLen {
+		sortSegment(out.data, start, start+rowLen)
 	}
 	return out
 }
 
-// ArgSort returns the indices that would sort along the last axis.
+// ArgSort returns the indices (Int64) that would sort along the last
+// axis (stable).
 func (a *NDArray) ArgSort() *NDArray {
 	c := a.Copy()
-	out := Zeros(c.shape...)
+	out := make([]int64, c.Size())
 	if c.NDim() == 0 || c.Size() == 0 {
-		return out
+		return newDense(out, c.shape, dtype.Int64)
 	}
 	rowLen := c.shape[len(c.shape)-1]
-	for start := 0; start < len(c.data); start += rowLen {
-		row := c.data[start : start+rowLen]
+	var less func(start int, i, j int) bool
+	if l := c.stringLoader(); l != nil {
+		less = func(start, i, j int) bool { return l(start+i) < l(start+j) }
+	} else {
+		l := c.mustFloatLoader("argsort")
+		less = func(start, i, j int) bool { return l(start+i) < l(start+j) }
+	}
+	for start := 0; start < c.Size(); start += rowLen {
 		idx := make([]int, rowLen)
 		for i := range idx {
 			idx[i] = i
 		}
-		sort.SliceStable(idx, func(x, y int) bool { return row[idx[x]] < row[idx[y]] })
+		sort.SliceStable(idx, func(x, y int) bool { return less(start, idx[x], idx[y]) })
 		for i, p := range idx {
-			out.data[start+i] = float64(p)
+			out[start+i] = int64(p)
 		}
 	}
+	return newDense(out, c.shape, dtype.Int64)
+}
+
+// Unique returns the sorted distinct values of the flattened array,
+// preserving the dtype, like np.unique.
+func Unique(a *NDArray) *NDArray {
+	sorted := a.Flatten().Sort()
+	n := sorted.Size()
+	if n == 0 {
+		return sorted
+	}
+	var keep []int
+	if l := sorted.stringLoader(); l != nil {
+		for i := 0; i < n; i++ {
+			if i == 0 || l(i) != l(i-1) {
+				keep = append(keep, i)
+			}
+		}
+	} else {
+		l := sorted.mustFloatLoader("unique")
+		for i := 0; i < n; i++ {
+			if i == 0 || l(i) != l(i-1) {
+				keep = append(keep, i)
+			}
+		}
+	}
+	out, _ := sorted.Take(keep, 0)
 	return out
 }
 
-// Unique returns the sorted distinct values of the flattened array, like
-// np.unique.
-func Unique(a *NDArray) *NDArray {
-	// Data() may alias the backing buffer for contiguous arrays; copy
-	// before sorting so the input array is never mutated.
-	data := append([]float64(nil), a.Data()...)
-	sort.Float64s(data)
-	var out []float64
-	for i, v := range data {
-		if i == 0 || v != data[i-1] {
-			out = append(out, v)
-		}
-	}
-	return Array(out)
-}
-
-// Joining -------------------------------------------------------------------
+// Joining ---------------------------------------------------------------------
 
 // Concatenate joins arrays along an existing axis, like np.concatenate.
+// All arrays must share a dtype (numeric mixes promote).
 func Concatenate(arrays []*NDArray, axis int) (*NDArray, error) {
 	if len(arrays) == 0 {
 		return nil, fmt.Errorf("%w: concatenate needs at least one array", errs.ErrInvalidOperation)
@@ -139,6 +214,7 @@ func Concatenate(arrays []*NDArray, axis int) (*NDArray, error) {
 	if err := first.checkAxis(axis); err != nil {
 		return nil, err
 	}
+	outDT := first.dtype
 	outShape := first.Shape()
 	for _, arr := range arrays[1:] {
 		if arr.NDim() != first.NDim() {
@@ -153,8 +229,15 @@ func Concatenate(arrays []*NDArray, axis int) (*NDArray, error) {
 			}
 		}
 		outShape[axis] += arr.shape[axis]
+		if arr.dtype != outDT {
+			p, err := promoteArith(outDT, arr.dtype)
+			if err != nil {
+				return nil, err
+			}
+			outDT = p
+		}
 	}
-	out := Zeros(outShape...)
+	out := newDense(allocData(outDT, shapeSize(outShape)), outShape, outDT)
 	offset := 0
 	for _, arr := range arrays {
 		for local := 0; local < arr.shape[axis]; local++ {
@@ -166,12 +249,9 @@ func Concatenate(arrays []*NDArray, axis int) (*NDArray, error) {
 			if err != nil {
 				return nil, err
 			}
-			data := src.Data()
-			i := 0
-			dst.iter(func(off int) {
-				dst.data[off] = data[i]
-				i++
-			})
+			if err := copyInto(dst, src); err != nil {
+				return nil, err
+			}
 		}
 		offset += arr.shape[axis]
 	}
@@ -243,38 +323,59 @@ func (a *NDArray) IsInf() *BoolArray {
 
 // Masking ----------------------------------------------------------------------
 
-// Mask returns the elements where mask is true as a 1-D array (NumPy
-// boolean indexing flattens).
+// Mask returns the elements where mask is true as a 1-D array of the
+// same dtype (NumPy boolean indexing flattens).
 func (a *NDArray) Mask(mask *BoolArray) (*NDArray, error) {
 	return Compress(mask, a)
 }
 
-// WhereScalar selects from a where mask is true and the scalar elsewhere.
+// WhereScalar selects from a where mask is true and the scalar elsewhere
+// (numeric arrays; the result keeps a's dtype when the scalar is
+// integral, else Float64).
 func WhereScalar(mask *BoolArray, a *NDArray, other float64) (*NDArray, error) {
 	if !sameShape(mask.shape, a.shape) {
 		return nil, fmt.Errorf("%w: where mask %v for array %v", errs.ErrShapeMismatch, mask.shape, a.Shape())
 	}
-	out := Zeros(mask.shape...)
-	data := a.Data()
-	for i := range out.data {
-		if mask.data[i] {
-			out.data[i] = data[i]
-		} else {
-			out.data[i] = other
-		}
+	load := a.floatLoader()
+	if load == nil {
+		return nil, fmt.Errorf("%w: WhereScalar on %s array", errs.ErrTypeMismatch, a.dtype)
 	}
-	return out, nil
+	dt := a.scalarResultDType(other, true)
+	data := allocData(dt, mask.Size())
+	store := floatStore(data)
+	i := 0
+	a.iter(func(off int) {
+		if mask.data[i] {
+			store(i, load(off))
+		} else {
+			store(i, other)
+		}
+		i++
+	})
+	return newDense(data, mask.shape, dt), nil
 }
 
 // Binary root helpers -------------------------------------------------------------
 
 // Maximum returns the elementwise maximum with broadcasting, like
-// np.maximum.
-func Maximum(a, b *NDArray) (*NDArray, error) { return binop(a, b, math.Max) }
+// np.maximum (dtype-promoting).
+func Maximum(a, b *NDArray) (*NDArray, error) {
+	p, err := promoteArith(a.dtype, b.dtype)
+	if err != nil {
+		return nil, err
+	}
+	return binopAs(a, b, p, math.Max)
+}
 
 // Minimum returns the elementwise minimum with broadcasting, like
-// np.minimum.
-func Minimum(a, b *NDArray) (*NDArray, error) { return binop(a, b, math.Min) }
+// np.minimum (dtype-promoting).
+func Minimum(a, b *NDArray) (*NDArray, error) {
+	p, err := promoteArith(a.dtype, b.dtype)
+	if err != nil {
+		return nil, err
+	}
+	return binopAs(a, b, p, math.Min)
+}
 
 // Reductions with ddof --------------------------------------------------------------
 
@@ -286,10 +387,11 @@ func (a *NDArray) VarDDof(ddof int, axis ...int) (*NDArray, error) {
 		if n-ddof <= 0 {
 			return scalarArray(math.NaN()), nil
 		}
+		load := a.mustFloatLoader("var")
 		mean := a.MeanAll()
 		acc := 0.0
 		a.iter(func(off int) {
-			d := a.data[off] - mean
+			d := load(off) - mean
 			acc += d * d
 		})
 		return scalarArray(acc / float64(n-ddof)), nil
@@ -315,5 +417,5 @@ func (a *NDArray) StdDDof(ddof int, axis ...int) (*NDArray, error) {
 	return v.Sqrt(), nil
 }
 
-// AsArray copies any numeric slice into a 1-D array (np.asarray-ish).
-func AsArray[T Number](data []T) *NDArray { return ArrayOf(data) }
+// AsArray copies any supported slice into a 1-D array (np.asarray-ish).
+func AsArray[T Element](data []T) *NDArray { return ArrayOf(data) }

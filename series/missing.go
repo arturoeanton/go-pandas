@@ -2,33 +2,30 @@ package series
 
 import (
 	"github.com/arturoeanton/go-pandas/dtype"
-	"github.com/arturoeanton/go-pandas/index"
+	"github.com/arturoeanton/go-pandas/internal/column"
 )
 
-// boolSeries builds a Bool series aligned with s.
+// boolSeries builds a Bool-backed series aligned with s.
 func (s *Series) boolSeries(name string, f func(i int) bool) *Series {
-	data := make([]any, s.Len())
-	mask := make([]bool, s.Len())
+	data := make([]bool, s.Len())
 	for i := range data {
 		data[i] = f(i)
 	}
 	return &Series{
 		name:  name,
-		dtype: dtype.Bool,
-		data:  data,
-		mask:  mask,
+		col:   column.NewBool(data, nil),
 		index: s.index.Clone(),
 	}
 }
 
 // IsNA returns a boolean series marking missing entries.
 func (s *Series) IsNA() *Series {
-	return s.boolSeries(s.name, func(i int) bool { return s.mask[i] })
+	return s.boolSeries(s.name, func(i int) bool { return s.col.IsNA(i) })
 }
 
 // NotNA returns a boolean series marking present entries.
 func (s *Series) NotNA() *Series {
-	return s.boolSeries(s.name, func(i int) bool { return !s.mask[i] })
+	return s.boolSeries(s.name, func(i int) bool { return !s.col.IsNA(i) })
 }
 
 // IsNull is an alias of IsNA.
@@ -40,8 +37,8 @@ func (s *Series) NotNull() *Series { return s.NotNA() }
 // DropNA returns the series without its missing entries.
 func (s *Series) DropNA() *Series {
 	var keep []int
-	for i, m := range s.mask {
-		if !m {
+	for i := 0; i < s.Len(); i++ {
+		if !s.col.IsNA(i) {
 			keep = append(keep, i)
 		}
 	}
@@ -49,49 +46,49 @@ func (s *Series) DropNA() *Series {
 	return out
 }
 
-// FillNA replaces missing entries with a value.
+// FillNA replaces missing entries with a value. When the value fits the
+// typed column the storage stays typed; otherwise the series rebuilds
+// with a promoted or object column (e.g. filling an int column with a
+// string).
 func (s *Series) FillNA(v any) *Series {
 	c := s.Copy()
-	for i, m := range c.mask {
-		if m {
-			c.data[i] = v
-			c.mask[i] = false
+	for i := 0; i < c.Len(); i++ {
+		if !c.col.IsNA(i) {
+			continue
+		}
+		if err := c.col.SetValue(i, v); err != nil {
+			// value does not fit the typed storage: rebuild boxed
+			values := s.col.Values()
+			for j := range values {
+				if s.col.IsNA(j) {
+					values[j] = v
+				}
+			}
+			return fromColumn(s.name, column.Infer(values), s.index.Clone())
 		}
 	}
-	c.dtype = dtype.InferDType(c.Values())
 	return c
 }
 
-// Astype converts every value to the target dtype.
+// Astype converts every value to the target dtype, changing the real
+// storage type (v0.3).
 func (s *Series) Astype(dt dtype.DType) (*Series, error) {
-	data := make([]any, s.Len())
-	for i := range s.data {
-		if s.mask[i] {
+	values := make([]any, s.Len())
+	for i := 0; i < s.Len(); i++ {
+		if s.col.IsNA(i) {
 			continue
 		}
-		v, err := dtype.CastValue(s.data[i], dt)
+		v, err := dtype.CastValue(s.col.Value(i), dt)
 		if err != nil {
 			return nil, err
 		}
-		data[i] = v
+		values[i] = v
 	}
-	return &Series{
-		name:  s.name,
-		dtype: dt,
-		data:  data,
-		mask:  append([]bool(nil), s.mask...),
-		index: s.index.Clone(),
-	}, nil
+	return fromColumn(s.name, column.FromAny(values, dt), s.index.Clone()), nil
 }
 
-// InferObjects re-infers the dtype of an Object series (e.g. after IO or
-// FillNA changed the value kinds).
+// InferObjects re-infers the dtype (and storage) of an object-backed
+// series, e.g. after IO or FillNA changed the value kinds.
 func (s *Series) InferObjects() *Series {
-	c := s.Copy()
-	c.dtype = dtype.InferDType(c.Values())
-	return c
+	return fromColumn(s.name, column.Infer(s.col.Values()), s.index.Clone())
 }
-
-// ensureAligned pads/reorders other to s's index. v0.1 requires equal
-// lengths; equal indexes are aligned by position.
-func ensureIndex(s *Series) index.Index { return s.index }

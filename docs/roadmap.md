@@ -1,6 +1,15 @@
 # Roadmap
 
-## v0.2 (this release) — aggressive compatibility
+## v0.3 (this release) — real typed storage
+
+- Typed column engine behind Series/DataFrame (bool/int/int64/float32/
+  float64/string/time + object fallback), typed NDArray backings,
+  NumPy-style arithmetic promotion, real Astype, typed CSV/records
+  inference, storage introspection, dtype goldens.
+- Pulled forward from the old v0.4 plan; the remaining v0.4 items move
+  down.
+
+## v0.2 — aggressive compatibility
 
 - Golden tests generated from real pandas/NumPy (200+ cases).
 - Series: rank, diff, pct_change, cumulatives, clip/round/abs, shift,
@@ -14,28 +23,27 @@
 - IO: usecols/nrows/keep_default_na; JSON split/columns orientations.
 - Fuzz tests, benchmarks, compatibility scoring.
 
-## v0.3 — stronger pandas
+## v0.4 — stronger pandas
 
 - MultiIndex beyond construction; groupby/set_index integration.
-- Categorical dtype.
+- Categorical dtype (typed storage for categories).
 - Timezone-aware datetimes; to_datetime with formats.
 - Resample; time-based rolling windows.
 - pivot_table with multiple values/aggfuncs; stack/unstack.
 - df.eval; stronger query parser (arithmetic in queries).
 
-## v0.4 — performance backends
+## v0.5 — performance backends
 
-- Typed column storage (retire []any).
-- Typed NDArray storage (int64/bool buffers).
+- Columnar expression engine (retire the per-row map in Where/Assign).
+- Integer compute kernels (skip the float64 pass); typed groupby keys.
 - Arrow interchange; Parquet and DuckDB adapters; gonum linalg adapter
   (det/inv/solve/eig/SVD).
-- Columnar expression engine; optional SIMD kernels.
+- Optional SIMD kernels.
 
-## v0.5 — compatibility expansion
+## v0.6 — compatibility expansion
 
 - Excel and SQL IO.
 - ewm; expanding aggregation parity.
-- Nullable typed dtypes surfaced in the API.
 
 ## v1.0 — stable API
 

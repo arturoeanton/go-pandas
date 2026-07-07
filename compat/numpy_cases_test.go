@@ -242,4 +242,31 @@ var numpyCases = map[string]caseFn{
 	// random ------------------------------------------------------------------------
 	"rand_2x3":  arrCase(func(t *testing.T) *pd.NDArray { return pd.Rand(2, 3) }),
 	"randn_100": arrCase(func(t *testing.T) *pd.NDArray { return pd.Randn(100) }),
+
+	// dtypes (v0.3 typed storage) ---------------------------------------------------
+	"dtype_int_array":    arrCase(func(t *testing.T) *pd.NDArray { return pd.ArrayInt([]int{1, 2, 3}) }),
+	"dtype_float_array":  arrCase(func(t *testing.T) *pd.NDArray { return pd.ArrayFloat64([]float64{1, 2}) }),
+	"dtype_bool_array":   arrCase(func(t *testing.T) *pd.NDArray { return pd.ArrayBool([]bool{true, false}) }),
+	"dtype_string_array": arrCase(func(t *testing.T) *pd.NDArray { return pd.ArrayString([]string{"a", "b"}) }),
+	"dtype_int_plus_float": func(t *testing.T) (any, error) {
+		return pd.ArrayInt([]int{1, 2, 3}).Add(pd.ArrayFloat64([]float64{1.5, 2.5, 3.5}))
+	},
+	"dtype_int_plus_int": func(t *testing.T) (any, error) {
+		return pd.ArrayInt([]int{1, 2}).Add(pd.ArrayInt([]int{3, 4}))
+	},
+	"dtype_int_div_int": func(t *testing.T) (any, error) {
+		return pd.ArrayInt([]int{1, 2}).Div(pd.ArrayInt([]int{3, 4}))
+	},
+	"dtype_bool_plus_int": func(t *testing.T) (any, error) {
+		return pd.ArrayBool([]bool{true, false}).Add(pd.ArrayInt([]int{1, 2}))
+	},
+	"dtype_astype_int": func(t *testing.T) (any, error) {
+		return pd.ArrayFloat64([]float64{1.7, -2.7}).Astype(pd.Int64)
+	},
+	"dtype_abs_int": arrCase(func(t *testing.T) *pd.NDArray {
+		return pd.ArrayInt([]int{-1, 2}).Abs()
+	}),
+	"dtype_sqrt_int": arrCase(func(t *testing.T) *pd.NDArray {
+		return pd.ArrayInt([]int{1, 4}).Sqrt()
+	}),
 }

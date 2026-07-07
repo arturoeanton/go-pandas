@@ -9,10 +9,10 @@ import (
 // values compare as false, like pandas.
 func (s *Series) cmp(name string, f func(v any) bool) *Series {
 	return s.boolSeries(s.name, func(i int) bool {
-		if s.mask[i] {
+		if s.col.IsNA(i) {
 			return false
 		}
-		return f(s.data[i])
+		return f(s.col.Value(i))
 	})
 }
 
@@ -84,10 +84,10 @@ func (s *Series) Le(v any) *Series {
 
 func (s *Series) cmpSeries(other *Series, f func(a, b any) bool) *Series {
 	return s.boolSeries(s.name, func(i int) bool {
-		if s.mask[i] || i >= other.Len() || other.mask[i] {
+		if s.col.IsNA(i) || i >= other.Len() || other.col.IsNA(i) {
 			return false
 		}
-		return f(s.data[i], other.data[i])
+		return f(s.col.Value(i), other.col.Value(i))
 	})
 }
 
@@ -124,10 +124,10 @@ func (s *Series) IsIn(values ...any) *Series {
 func (s *Series) AsMask() []bool {
 	out := make([]bool, s.Len())
 	for i := range out {
-		if s.mask[i] {
+		if s.col.IsNA(i) {
 			continue
 		}
-		if b, ok := s.data[i].(bool); ok {
+		if b, ok := s.col.Value(i).(bool); ok {
 			out[i] = b
 		}
 	}

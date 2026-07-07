@@ -31,8 +31,27 @@ func TestTypedConstructorsAndAstype(t *testing.T) {
 	if casted.DType() != dtype.Int64 {
 		t.Errorf("Astype dtype = %v", casted.DType())
 	}
-	if _, err := Array([]float64{1}).Astype(dtype.String); !errors.Is(err, errs.ErrInvalidDType) {
-		t.Errorf("Astype string error = %v", err)
+	if _, ok := casted.RawData().([]int64); !ok {
+		t.Errorf("Astype(Int64) backing = %T, want []int64", casted.RawData())
+	}
+	// v0.3: string conversion is real
+	asStr, err := Array([]float64{1.5}).Astype(dtype.String)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if vals := asStr.Values(); vals[0] != "1.5" {
+		t.Errorf("Astype(String) = %v", vals)
+	}
+	parsed, err := ArrayString([]string{"42", "7"}).Astype(dtype.Int)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertData(t, parsed, []float64{42, 7})
+	if _, err := ArrayString([]string{"abc"}).Astype(dtype.Int64); err == nil {
+		t.Error("Astype of non-numeric string should error")
+	}
+	if _, err := Array([]float64{1}).Astype(dtype.Time); !errors.Is(err, errs.ErrInvalidDType) {
+		t.Errorf("Astype to unsupported dtype error = %v", err)
 	}
 }
 

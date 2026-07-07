@@ -1,0 +1,62 @@
+{
+ "suite": "pandas.dtypes",
+ "pandas_version": "2.3.3",
+ "cases": [
+  {
+   "name": "dtype_series_int",
+   "operation": "pd.Series([1,2,3]).dtype.kind",
+   "expected": {
+    "kind": "i"
+   }
+  },
+  {
+   "name": "dtype_series_int_na",
+   "operation": "pd.Series([1,None,3], dtype='Int64').dtype.kind",
+   "expected": {
+    "kind": "i"
+   }
+  },
+  {
+   "name": "dtype_series_mixed_na",
+   "operation": "pd.Series([1,2.5,None]).dtype.kind",
+   "expected": {
+    "kind": "f"
+   }
+  },
+  {
+   "name": "dtype_series_bool",
+   "operation": "pd.Series([True,False]).dtype.kind",
+   "expected": {
+    "kind": "b"
+   }
+  },
+  {
+   "name": "dtype_series_string",
+   "operation": "pd.Series(['a','b']).dtype.kind",
+   "expected": {
+    "kind": "O"
+   }
+  },
+  {
+   "name": "dtype_frame_int_na",
+   "operation": "df['age'].dtype.kind (nullable)",
+   "expected": {
+    "kind": "i"
+   }
+  },
+  {
+   "name": "dtype_astype_float",
+   "operation": "df.astype({'age':'float64'})['age'].dtype.kind",
+   "expected": {
+    "kind": "f"
+   }
+  },
+  {
+   "name": "dtype_to_datetime",
+   "operation": "pd.to_datetime(s).dtype.kind",
+   "expected": {
+    "kind": "M"
+   }
+  }
+ ]
+}

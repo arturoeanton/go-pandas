@@ -372,6 +372,44 @@ var pandasCases = map[string]caseFn{
 		return df.Rolling(2).Mean()
 	},
 
+	// dtypes (v0.3 typed storage) -----------------------------------------------
+	"dtype_series_int": func(t *testing.T) (any, error) {
+		return pd.SeriesOf("v", []int{1, 2, 3}), nil
+	},
+	"dtype_series_int_na": func(t *testing.T) (any, error) {
+		return pd.NewSeries("v", []any{1, nil, 3}), nil
+	},
+	"dtype_series_mixed_na": func(t *testing.T) (any, error) {
+		return pd.NewSeries("v", []any{1, 2.5, nil}), nil
+	},
+	"dtype_series_bool": func(t *testing.T) (any, error) {
+		return pd.BoolSeries("v", []bool{true, false}), nil
+	},
+	"dtype_series_string": func(t *testing.T) (any, error) {
+		return pd.StringSeries("v", []string{"a", "b"}), nil
+	},
+	"dtype_frame_int_na": func(t *testing.T) (any, error) {
+		df, err := pd.DataFrameFromMap(map[string][]any{"age": {1, nil, 3}})
+		if err != nil {
+			return nil, err
+		}
+		return df.Col("age")
+	},
+	"dtype_astype_float": func(t *testing.T) (any, error) {
+		df, err := pd.DataFrameFromMap(map[string][]any{"age": {1, nil, 3}})
+		if err != nil {
+			return nil, err
+		}
+		converted, err := df.Astype(map[string]pd.DType{"age": pd.Float64})
+		if err != nil {
+			return nil, err
+		}
+		return converted.Col("age")
+	},
+	"dtype_to_datetime": func(t *testing.T) (any, error) {
+		return pd.ToDatetime(pd.StringSeries("d", []string{"2024-01-02"}))
+	},
+
 	// io ------------------------------------------------------------------------
 	"read_csv_basic": csvCase("name,age,score\nAna,30,9.5\nLuis,40,8.0\n"),
 	"read_csv_na":    csvCase("a,b\n1,x\nNA,y\n3,\n"),

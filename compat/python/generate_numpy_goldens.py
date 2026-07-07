@@ -207,7 +207,27 @@ def random_suite():
     write("random.json", "numpy.random", cases)
 
 
+def dtypes_suite():
+    # Kind characters ('i' int, 'f' float, 'b' bool, 'U' unicode) keep the
+    # comparison independent of bit-width naming.
+    cases = [
+        case("dtype_int_array", "np.array([1,2,3]).dtype.kind", {"kind": np.array([1, 2, 3]).dtype.kind}),
+        case("dtype_float_array", "np.array([1.0,2.0]).dtype.kind", {"kind": np.array([1.0, 2.0]).dtype.kind}),
+        case("dtype_bool_array", "np.array([True,False]).dtype.kind", {"kind": np.array([True, False]).dtype.kind}),
+        case("dtype_string_array", "np.array(['a','b']).dtype.kind", {"kind": np.array(["a", "b"]).dtype.kind}),
+        case("dtype_int_plus_float", "(int_arr + float_arr).dtype.kind", {"kind": (np.array([1, 2, 3]) + np.array([1.5, 2.5, 3.5])).dtype.kind}),
+        case("dtype_int_plus_int", "(int_arr + int_arr).dtype.kind", {"kind": (np.array([1, 2]) + np.array([3, 4])).dtype.kind}),
+        case("dtype_int_div_int", "(int_arr / int_arr).dtype.kind", {"kind": (np.array([1, 2]) / np.array([3, 4])).dtype.kind}),
+        case("dtype_bool_plus_int", "(bool_arr + int_arr).dtype.kind", {"kind": (np.array([True, False]) + np.array([1, 2])).dtype.kind}),
+        case("dtype_astype_int", "float_arr.astype(int).dtype.kind", {"kind": np.array([1.7, -2.7]).astype(int).dtype.kind}),
+        case("dtype_abs_int", "np.abs(int_arr).dtype.kind", {"kind": np.abs(np.array([-1, 2])).dtype.kind}),
+        case("dtype_sqrt_int", "np.sqrt(int_arr).dtype.kind", {"kind": np.sqrt(np.array([1, 4])).dtype.kind}),
+    ]
+    write("dtypes.json", "numpy.dtypes", cases)
+
+
 def main():
+    dtypes_suite()
     constructors()
     ndarray_core()
     broadcasting()

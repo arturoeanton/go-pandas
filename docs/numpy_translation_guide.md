@@ -1,25 +1,41 @@
 # NumPy → go-pandas translation guide
 
-v0.2 arrays store float64 with logical dtypes; see
-[dtype_semantics.md](dtype_semantics.md) for the storage plan.
+Since v0.3 arrays store **real typed backings**: `[]bool`, `[]int`,
+`[]int64`, `[]float32`, `[]float64` and `[]string`. Arithmetic promotes
+dtypes NumPy-style. See [dtype_semantics.md](dtype_semantics.md).
 
 ## Array creation
 
 ```python
-a = np.array([1, 2, 3])
+a = np.array([1, 2, 3])        # int64
+f = np.array([1.5, 2.5])       # float64
 m = np.array([[1, 2], [3, 4]])
 ```
 
 ```go
-a := pd.Array([]float64{1, 2, 3})     // pd.ArrayInt, pd.ArrayBool... record dtype
+a := pd.ArrayInt([]int{1, 2, 3})          // []int backing
+f := pd.Array([]float64{1.5, 2.5})        // []float64 backing
+s := pd.ArrayString([]string{"a", "b"})   // []string backing
 m, err := pd.Array2D([][]float64{
     {1, 2},
     {3, 4},
 })
+typed, err := pd.FromSliceTyped([]int{1, 2, 3, 4}, 2, 2) // shaped, int backing
 ```
 
 Constructors: `Zeros`, `Ones`, `Full`, `Empty`, `Arange`, `Linspace`,
-`Logspace`, `Eye`, `Identity`, `Diag`, `Rand`, `Randn`, `AsArray`.
+`Logspace`, `Eye`, `Identity`, `Diag`, `Rand`, `Randn`, `AsArray` (these
+produce Float64, matching NumPy defaults; note `Arange` stays Float64
+even for integer arguments — a documented difference).
+
+Dtype promotion in arithmetic:
+
+```go
+c, _ := pd.ArrayInt([]int{1, 2}).Add(pd.Array([]float64{0.5, 0.5}))
+c.DType()        // pd.Float64
+ii, _ := pd.ArrayInt([]int{1, 2}).Add(pd.ArrayInt([]int{3, 4}))
+ii.RawData()     // []int
+```
 
 ## Shape manipulation
 
@@ -128,3 +144,14 @@ np.random.randn(9)  pd.Randn(9)
 
 Values differ from NumPy (different generators); only distributions and
 shapes match.
+
+## Introspecting storage
+
+```go
+a.DType()          // logical dtype (== storage dtype since v0.3)
+a.StorageDType()   // dtype of the physical backing
+a.RawData()        // the typed backing slice ([]int, []float64, ...)
+a.Values()         // boxed []any, any dtype
+a.Data()           // converted []float64 (nil for string arrays)
+a.ValueAt(1, 2)    // boxed element (works for strings; At is numeric-only)
+```

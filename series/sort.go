@@ -26,13 +26,13 @@ func (s *Series) SortValues(ascending bool) *Series {
 
 // lessAt orders two positions of a series, NA last regardless of order.
 func lessAt(s *Series, i, j int, ascending bool) bool {
-	if s.mask[i] {
+	if s.col.IsNA(i) {
 		return false
 	}
-	if s.mask[j] {
+	if s.col.IsNA(j) {
 		return true
 	}
-	c, ok := expr.CompareValues(s.data[i], s.data[j])
+	c, ok := expr.CompareValues(s.col.Value(i), s.col.Value(j))
 	if !ok {
 		return false
 	}
@@ -80,33 +80,34 @@ func (s *Series) Unique() *Series {
 	seen := make(map[string]bool)
 	sawNA := false
 	var values []any
-	for i, v := range s.data {
-		if s.mask[i] {
+	for i := 0; i < s.Len(); i++ {
+		if s.col.IsNA(i) {
 			if !sawNA {
 				sawNA = true
 				values = append(values, nil)
 			}
 			continue
 		}
+		v := s.col.Value(i)
 		k := hashKey(v)
 		if !seen[k] {
 			seen[k] = true
 			values = append(values, v)
 		}
 	}
-	return NewSeries(s.name, values, WithDType(s.dtype))
+	return NewSeries(s.name, values, WithDType(s.DType()))
 }
 
 // NUnique counts the distinct values; dropNA excludes the NA entry.
 func (s *Series) NUnique(dropNA bool) int {
 	seen := make(map[string]bool)
 	sawNA := false
-	for i, v := range s.data {
-		if s.mask[i] {
+	for i := 0; i < s.Len(); i++ {
+		if s.col.IsNA(i) {
 			sawNA = true
 			continue
 		}
-		seen[hashKey(v)] = true
+		seen[hashKey(s.col.Value(i))] = true
 	}
 	n := len(seen)
 	if sawNA && !dropNA {
@@ -155,12 +156,13 @@ func (s *Series) ValueCounts(opts ...ValueCountOption) *Series {
 	var order []any
 	naCount := 0
 	total := 0
-	for i, v := range s.data {
-		if s.mask[i] {
+	for i := 0; i < s.Len(); i++ {
+		if s.col.IsNA(i) {
 			naCount++
 			total++
 			continue
 		}
+		v := s.col.Value(i)
 		k := hashKey(v)
 		if _, ok := counts[k]; !ok {
 			order = append(order, v)

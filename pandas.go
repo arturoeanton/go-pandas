@@ -69,6 +69,7 @@ type (
 
 // DType constant re-exports.
 const (
+	Invalid   = dtype.Invalid
 	Bool      = dtype.Bool
 	Int       = dtype.Int
 	Int8      = dtype.Int8

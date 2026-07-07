@@ -42,6 +42,9 @@ type GoldenExpected struct {
 	// Property-only checks (random arrays).
 	Min *float64 `json:"min,omitempty"`
 	Max *float64 `json:"max,omitempty"`
+	// Dtype kind character ('i', 'f', 'b', 'O', 'U', 'M') for
+	// dtype-sensitive cases.
+	Kind string `json:"kind,omitempty"`
 	// Error expected.
 	Error bool `json:"error,omitempty"`
 	// Marks Data entries that are null in JSON (NaN in NumPy).

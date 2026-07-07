@@ -50,11 +50,10 @@ func (a *NDArray) Reshape(shape ...int) (*NDArray, error) {
 	return c, nil
 }
 
-// Flatten returns a 1-D copy of the array.
+// Flatten returns an independent 1-D copy of the array, preserving the
+// dtype.
 func (a *NDArray) Flatten() *NDArray {
-	// Data() may alias the backing buffer for contiguous arrays; copy so
-	// the result is independent, as documented.
-	return newOwned(append([]float64(nil), a.Data()...), []int{a.Size()})
+	return newDense(a.materialize(), []int{a.Size()}, a.dtype)
 }
 
 // Ravel returns a 1-D view when the array is contiguous, otherwise a copy.

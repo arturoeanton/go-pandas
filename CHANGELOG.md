@@ -1,5 +1,62 @@
 # Changelog
 
+## v0.3.0 - Real typed storage
+
+The headline: dtypes stopped being labels. NDArray, Series and DataFrame
+columns now store real typed Go slices.
+
+### Added
+- `internal/column`: the typed column engine — one generic column over
+  bool/int/int64/float32/float64/string/time.Time plus the `[]any`
+  object fallback, all mask-based for missing values, with a
+  boxing-free `Float64s()` buffer accessor.
+- NDArray typed backings: `ArrayInt` stores `[]int`, `ArrayInt64`
+  `[]int64`, `ArrayFloat32` `[]float32`, `ArrayBool` `[]bool`, and the
+  new `ArrayString` stores `[]string` (comparisons, Sort, Unique,
+  Astype; arithmetic errors).
+- NumPy-style arithmetic dtype promotion: int+int→int, int+int64→int64,
+  int+float64→float64, float32+float32→float32, bool arithmetic→int,
+  int/int→float64 true division; string arithmetic errors. Integer
+  arrays keep integer dtypes through Abs/Clip/Round/scalar ops with
+  integral scalars; Sqrt/Exp/... produce floats; ArgMin/ArgMax return
+  Int64.
+- Real `Astype` everywhere: storage conversion for NDArray, Series and
+  DataFrame (float→int truncates toward zero, string parses, →string
+  formats, masks survive).
+- Typed inference end to end: `SeriesOf([]int)` builds an int column
+  without boxing; `[]any{1, nil, 2.5}` promotes to a masked
+  Float64Column; `DataFrameFromRecords` and `ReadCSV` produce typed
+  columns (string/int/float64/bool/time) with masked NA cells.
+- Introspection: `Series.StorageDType`/`IsObjectBacked`,
+  `DataFrame.StorageDTypes`, `NDArray.StorageDType`/`RawData`/`Values`/
+  `ValueAt`/`SetValue`, root `pd.ArrayString`, `pd.FromSliceTyped`,
+  `pd.Invalid`.
+- 19 new dtype golden cases generated from real pandas/NumPy (kind
+  characters), typed-storage acceptance tests, typed-vs-object
+  benchmarks and 4 typed fuzz targets. Golden total: 220.
+
+### Changed (breaking or behavioral)
+- `a.Data()` converts non-float64 numeric backings and returns nil for
+  string arrays (was: the float64 buffer, always).
+- Numeric ufunc methods (`Sqrt`, `Exp`, ...) panic with an
+  ErrTypeMismatch message on string arrays (they have no error return).
+- `Series.Set` is type-checked: incompatible values return
+  ErrTypeMismatch instead of landing in boxed storage; `FillNA` with an
+  incompatible fill rebuilds as object-backed.
+- Scalar ops keep integer dtypes for integral scalars
+  (`ints.MulScalar(2)` is still an int array); reductions over integer
+  arrays keep integer dtypes for sum/min/max.
+- `ArrayOf`/`AsArray`/`FromSlice`/`MustFromSlice` are generic over all
+  supported element types (existing float64 calls compile unchanged).
+- Series arithmetic fast path reads typed buffers; float64 reductions no
+  longer box per element (~2.6x faster mean on 100K floats).
+
+### Known limitations
+- Complex numbers and categorical values stay object-backed.
+- `Arange` returns Float64 even for integer arguments (NumPy: int64).
+- Integer values above 2^53 lose precision when an operation routes
+  through the float64 compute path (arithmetic, Astype).
+
 ## v0.2.1 - Hardening
 
 Audit-driven patch release: no new subsystems, only correctness fixes,

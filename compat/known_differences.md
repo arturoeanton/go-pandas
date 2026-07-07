@@ -37,14 +37,38 @@ root-function parity). Inside expressions use the `*Expr` suffix:
 - The dtype system is an enum, not extension objects. `datetime64[ns]`,
   `datetime64[us]`, ... all parse to one `datetime64` dtype backed by
   `time.Time` (nanosecond precision, no fixed unit).
-- Every Series is nullable via its mask; pandas' "Int64" vs "int64"
-  distinction collapses to `int64` + mask.
-- v0.2 NDArrays store float64 physically. `ArrayInt`, `ArrayInt64` and
-  `ArrayFloat32` currently preserve logical dtype metadata but the
-  internal numeric storage is float64 in v0.2.x; `Astype` converts values
-  (integer truncation, bool normalization) and updates the metadata
-  without changing the physical representation. Large int64 values above
-  2^53 lose precision. True typed storage is the v0.4 milestone.
+- Every Series is nullable via its mask. Missing integers therefore
+  behave like pandas' **nullable** `Int64` dtype, not the classic
+  float64 coercion: `pd.Series([1, None, 3])` is float64 in pandas but
+  an int column + mask here (golden-tested against `dtype="Int64"`).
+- **v0.3 storage is typed**: NDArray backs onto `[]bool`, `[]int`,
+  `[]int64`, `[]float32`, `[]float64` or `[]string`; Series/DataFrame
+  columns back onto typed columns for bool/int/int64/float32/float64/
+  string/time data. Object-backed `[]any` storage remains only for mixed
+  or unsupported values (`s.IsObjectBacked()` / `StorageDType()` tell
+  you which). Complex numbers and categorical data have no typed storage
+  yet.
+- `NDArray.Astype` and `Series.Astype` convert real storage. Float to
+  integer truncates toward zero; string sources parse (string→int goes
+  through float parsing, so "2.5" truncates rather than erroring like
+  pandas); bool targets store `v != 0`.
+- Arithmetic promotes dtypes NumPy-style (int+int→int, int+float→float64,
+  float32+float32→float32, any int+float32→float64, bool arithmetic→int,
+  int/int→float64 true division). `Pow` on integers computes in floating
+  point and truncates — negative integer exponents differ from NumPy
+  (which raises).
+- `Arange` always returns Float64 (NumPy returns int64 for integer
+  arguments). `Zeros`/`Ones`/`Full`/`Linspace`/random are Float64, like
+  NumPy defaults.
+- `a.Data()` returns values converted to `[]float64` (aliasing the
+  backing only for contiguous Float64 arrays) and returns nil for string
+  arrays — use `Values()`, `ValueAt` or `RawData()`. Numeric ufunc
+  methods (`Sqrt`, `Exp`, ... — the error-free NumPy-shaped API) panic
+  with an ErrTypeMismatch message on string arrays.
+- `Series.Set` is type-checked since v0.3: storing an incompatible value
+  into a typed column returns ErrTypeMismatch (the old boxed storage
+  accepted anything). `FillNA` with an incompatible fill value rebuilds
+  the series as object-backed instead.
 - Map-based DataFrame constructors order columns alphabetically unless
   `pd.WithColumnOrder` is given (Go maps are unordered; pandas preserves
   dict insertion order).

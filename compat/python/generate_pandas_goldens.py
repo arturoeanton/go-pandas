@@ -370,7 +370,27 @@ def io_suite():
     write("io.json", "pandas.io", cases)
 
 
+def dtypes_suite():
+    # go-pandas models missing integers with a mask, matching pandas'
+    # NULLABLE dtypes ("Int64"), not the classic float64 coercion. The
+    # nullable spellings are used here on purpose; see known_differences.
+    int_na = pd.Series([1, None, 3], dtype="Int64")
+    df_na = pd.DataFrame({"age": pd.array([1, None, 3], dtype="Int64")})
+    cases = [
+        case("dtype_series_int", "pd.Series([1,2,3]).dtype.kind", {"kind": pd.Series([1, 2, 3]).dtype.kind}),
+        case("dtype_series_int_na", "pd.Series([1,None,3], dtype='Int64').dtype.kind", {"kind": int_na.dtype.kind}),
+        case("dtype_series_mixed_na", "pd.Series([1,2.5,None]).dtype.kind", {"kind": pd.Series([1, 2.5, None]).dtype.kind}),
+        case("dtype_series_bool", "pd.Series([True,False]).dtype.kind", {"kind": pd.Series([True, False]).dtype.kind}),
+        case("dtype_series_string", "pd.Series(['a','b']).dtype.kind", {"kind": pd.Series(["a", "b"]).dtype.kind}),
+        case("dtype_frame_int_na", "df['age'].dtype.kind (nullable)", {"kind": df_na["age"].dtype.kind}),
+        case("dtype_astype_float", "df.astype({'age':'float64'})['age'].dtype.kind", {"kind": df_na.astype({"age": "float64"})["age"].dtype.kind}),
+        case("dtype_to_datetime", "pd.to_datetime(s).dtype.kind", {"kind": pd.to_datetime(pd.Series(["2024-01-02"])).dtype.kind}),
+    ]
+    write("dtypes.json", "pandas.dtypes", cases)
+
+
 def main():
+    dtypes_suite()
     dataframe_core()
     series_core()
     groupby()

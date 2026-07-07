@@ -3,7 +3,6 @@ package series
 import (
 	"fmt"
 
-	"github.com/arturoeanton/go-pandas/dtype"
 	"github.com/arturoeanton/go-pandas/errs"
 	"github.com/arturoeanton/go-pandas/index"
 )
@@ -29,18 +28,14 @@ func (s *Series) Loc(label any) (any, error) {
 }
 
 // Set writes a value at a position; NA-like values mark it missing.
+// Values that cannot be stored in the typed column return
+// ErrTypeMismatch (v0.3: previously any value was accepted into the
+// boxed storage).
 func (s *Series) Set(pos int, v any) error {
 	if pos < 0 || pos >= s.Len() {
 		return fmt.Errorf("%w: position %d for series of length %d", errs.ErrIndexOutOfBounds, pos, s.Len())
 	}
-	if dtype.IsNA(v) {
-		s.data[pos] = nil
-		s.mask[pos] = true
-		return nil
-	}
-	s.data[pos] = v
-	s.mask[pos] = false
-	return nil
+	return s.col.SetValue(pos, v)
 }
 
 // Head returns the first n elements (all when n exceeds the length).
@@ -82,24 +77,13 @@ func (s *Series) Slice(start, stop int) (*Series, error) {
 // Take selects positions into a new series. Negative positions produce
 // missing values (used by joins/alignment).
 func (s *Series) Take(pos []int) (*Series, error) {
-	data := make([]any, len(pos))
-	mask := make([]bool, len(pos))
-	for i, p := range pos {
-		if p < 0 {
-			mask[i] = true
-			continue
-		}
-		if p >= s.Len() {
-			return nil, fmt.Errorf("%w: take position %d for series of length %d", errs.ErrIndexOutOfBounds, p, s.Len())
-		}
-		data[i] = s.data[p]
-		mask[i] = s.mask[p]
+	col, err := s.col.Take(pos)
+	if err != nil {
+		return nil, err
 	}
 	return &Series{
 		name:  s.name,
-		dtype: s.dtype,
-		data:  data,
-		mask:  mask,
+		col:   col,
 		index: index.Take(s.index, pos),
 	}, nil
 }

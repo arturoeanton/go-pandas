@@ -13,11 +13,17 @@
 go-pandas is a compatibility-oriented data toolkit: pandas-style
 `DataFrame`/`Series` and NumPy-style `NDArray` with the same concepts,
 names and behavior — verified against **golden outputs generated from
-real pandas and NumPy** (200+ test cases, pandas 2.3 / NumPy 2.0).
+real pandas and NumPy** (220 test cases, pandas 2.3 / NumPy 2.0).
+
+Since v0.3 storage is **typed**: `pd.ArrayInt` really stores `[]int`,
+`pd.SeriesOf("x", []string{...})` really stores `[]string`, DataFrame
+columns and CSV parsing infer typed columns, and arithmetic promotes
+dtypes NumPy-style (`int + float64 → float64`). Mixed data falls back to
+object storage — `StorageDType()` / `IsObjectBacked()` tell you which.
 
 ## Stability status
 
-go-pandas v0.2.x is **experimental**. The API is not yet v1 stable.
+go-pandas v0.3.x is **experimental**. The API is not yet v1 stable.
 Compatibility is conceptual and behavioral where tested, not Python
 syntax compatibility. Current coverage, computed from the matrices with
 `go run ./cmd/compat-report`: pandas 93% of 98 tracked rows, NumPy 88%
@@ -110,6 +116,11 @@ norm := m.SubScalar(m.MeanAll()).DivScalar(m.StdAll())
 tr, _ := norm.T()
 prod, _ := pd.MatMul(m, tr)
 _ = c; _ = view; _ = prod
+
+// typed storage + promotion (v0.3)
+ints := pd.ArrayInt([]int{1, 2, 3})     // RawData() is []int
+sum, _ := ints.Add(pd.Array([]float64{0.5, 0.5, 0.5}))
+_ = sum.DType()                         // pd.Float64
 ```
 
 ## CSV / JSON

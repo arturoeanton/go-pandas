@@ -1,6 +1,7 @@
 // Package ndarray implements a NumPy-style n-dimensional array with
 // shape/strides views, slicing, broadcasting, ufunc-like math, reductions
-// and basic linear algebra. v0.1 stores float64 elements.
+// and basic linear algebra. Since v0.3 storage is typed: bool, int,
+// int64, float32, float64 and string backings.
 package ndarray
 
 import (
@@ -12,17 +13,18 @@ import (
 	"github.com/arturoeanton/go-pandas/errs"
 )
 
-// Number constrains the element types accepted by generic constructors.
+// Number constrains the element types accepted by numeric constructors.
 type Number interface {
 	~int | ~int8 | ~int16 | ~int32 | ~int64 |
 		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 |
 		~float32 | ~float64
 }
 
-// NDArray is an n-dimensional, row-major array of float64. Views share the
-// underlying data buffer and are materialized only on Copy.
+// NDArray is an n-dimensional, row-major array over a typed backing
+// slice. Views share the underlying buffer and are materialized only on
+// Copy.
 type NDArray struct {
-	data    []float64
+	data    any // []bool | []int | []int64 | []float32 | []float64 | []string
 	shape   []int
 	strides []int
 	offset  int
@@ -61,37 +63,54 @@ func (a *NDArray) Size() int { return shapeSize(a.shape) }
 // NDim returns the number of dimensions.
 func (a *NDArray) NDim() int { return len(a.shape) }
 
-// DType returns the element dtype (Float64 in v0.1).
+// DType returns the element dtype.
 func (a *NDArray) DType() dtype.DType { return a.dtype }
+
+// StorageDType returns the dtype of the physical backing slice. Since
+// v0.3 it always equals DType().
+func (a *NDArray) StorageDType() dtype.DType { return dtypeOfData(a.data) }
 
 // IsView reports whether the array shares its buffer with another array.
 func (a *NDArray) IsView() bool { return a.view }
 
-// Data returns the flattened elements in logical (row-major) order. For
-// contiguous non-view arrays this is the backing slice itself.
+// RawData returns the typed backing slice ([]int, []float64, ...) of the
+// whole buffer. For views it includes elements outside the view; use
+// Copy().RawData() for a dense, view-free backing. Treat it as
+// read-only unless you own the array.
+func (a *NDArray) RawData() any { return a.data }
+
+// Data returns the elements converted to float64 in logical (row-major)
+// order. For contiguous, non-view Float64 arrays this is the backing
+// slice itself (treat it as read-only); other numeric dtypes are
+// converted copies. String arrays return nil — use Values().
 func (a *NDArray) Data() []float64 {
-	if !a.view && a.offset == 0 && a.isContiguous() {
-		return a.data
+	if d, ok := a.data.([]float64); ok && !a.view && a.offset == 0 && a.isContiguous() {
+		return d
+	}
+	load := a.floatLoader()
+	if load == nil {
+		return nil
 	}
 	out := make([]float64, 0, a.Size())
 	a.iter(func(off int) {
-		out = append(out, a.data[off])
+		out = append(out, load(off))
+	})
+	return out
+}
+
+// Values returns the elements boxed as []any in logical order, for any
+// dtype (including strings).
+func (a *NDArray) Values() []any {
+	out := make([]any, 0, a.Size())
+	a.iter(func(off int) {
+		out = append(out, a.valueAt(off))
 	})
 	return out
 }
 
 // Copy returns a compact, contiguous deep copy of the array.
 func (a *NDArray) Copy() *NDArray {
-	out := &NDArray{
-		data:    a.Data(),
-		shape:   append([]int(nil), a.shape...),
-		dtype:   a.dtype,
-		strides: computeStrides(a.shape),
-	}
-	if !a.view && a.offset == 0 && a.isContiguous() {
-		out.data = append([]float64(nil), a.data...)
-	}
-	return out
+	return newDense(a.materialize(), a.shape, a.dtype)
 }
 
 // Clone is an alias of Copy.
@@ -108,7 +127,7 @@ func (a *NDArray) isContiguous() bool {
 }
 
 // iter walks every element in row-major logical order, calling f with the
-// physical offset into a.data.
+// physical offset into the backing slice.
 func (a *NDArray) iter(f func(offset int)) {
 	if len(a.shape) == 0 {
 		f(a.offset)
@@ -159,8 +178,20 @@ func (a *NDArray) String() string {
 }
 
 func formatFloat(v float64) string {
-	s := strconv.FormatFloat(v, 'g', -1, 64)
-	return s
+	return strconv.FormatFloat(v, 'g', -1, 64)
+}
+
+func (a *NDArray) formatElem(off int) string {
+	switch v := a.valueAt(off).(type) {
+	case float64:
+		return formatFloat(v)
+	case float32:
+		return formatFloat(float64(v))
+	case string:
+		return strconv.Quote(v)
+	default:
+		return fmt.Sprint(v)
+	}
 }
 
 // format renders the (sub-)array selected by the given leading coords.
@@ -170,7 +201,7 @@ func (a *NDArray) format(coords []int, indent int) string {
 		for d, c := range coords {
 			off += c * a.strides[d]
 		}
-		return formatFloat(a.data[off])
+		return a.formatElem(off)
 	}
 	dim := a.shape[len(coords)]
 	parts := make([]string, dim)

@@ -6,66 +6,102 @@ import (
 
 	"github.com/arturoeanton/go-pandas/dtype"
 	"github.com/arturoeanton/go-pandas/errs"
+	"github.com/arturoeanton/go-pandas/internal/column"
 )
+
+func applyOp(op string, x, y float64) float64 {
+	switch op {
+	case "+":
+		return x + y
+	case "-":
+		return x - y
+	case "*":
+		return x * y
+	case "/":
+		return x / y
+	case "%":
+		return math.Mod(x, y)
+	case "**":
+		return math.Pow(x, y)
+	}
+	return math.NaN()
+}
 
 // binop applies an arithmetic operation elementwise between two series of
 // equal length. Missing operands produce missing results. Integer inputs
-// keep integer results for closed operations; Div always yields floats.
+// keep integer results (typed Int64 storage) for closed operations; Div
+// always yields floats.
 func (s *Series) binop(other *Series, op string) (*Series, error) {
 	if other.Len() != s.Len() {
 		return nil, fmt.Errorf("%w: series lengths %d and %d", errs.ErrLengthMismatch, s.Len(), other.Len())
 	}
-	data := make([]any, s.Len())
-	mask := make([]bool, s.Len())
-	intResult := dtype.IsInteger(s.dtype) && dtype.IsInteger(other.dtype) && op != "/" && op != "**"
-	for i := 0; i < s.Len(); i++ {
-		if s.mask[i] || other.mask[i] {
+	intResult := dtype.IsInteger(s.DType()) && dtype.IsInteger(other.DType()) && op != "/" && op != "**"
+
+	// Fast path: both sides expose numeric buffers.
+	fa, ma, okA := s.col.Float64s()
+	fb, mb, okB := other.col.Float64s()
+	if okA && okB {
+		n := s.Len()
+		mask := make([]bool, n)
+		if intResult {
+			data := make([]int64, n)
+			for i := 0; i < n; i++ {
+				if ma[i] || mb[i] {
+					mask[i] = true
+					continue
+				}
+				data[i] = int64(applyOp(op, fa[i], fb[i]))
+			}
+			return fromColumn(s.name, column.NewInt64(data, mask), s.index.Clone()), nil
+		}
+		data := make([]float64, n)
+		for i := 0; i < n; i++ {
+			if ma[i] || mb[i] {
+				mask[i] = true
+				continue
+			}
+			data[i] = applyOp(op, fa[i], fb[i])
+		}
+		return fromColumn(s.name, column.NewFloat64(data, mask), s.index.Clone()), nil
+	}
+
+	// String concatenation via Add.
+	if op == "+" && dtype.IsString(s.DType()) && dtype.IsString(other.DType()) {
+		n := s.Len()
+		data := make([]string, n)
+		mask := make([]bool, n)
+		for i := 0; i < n; i++ {
+			if s.col.IsNA(i) || other.col.IsNA(i) {
+				mask[i] = true
+				continue
+			}
+			xs, okX := s.col.Value(i).(string)
+			ys, okY := other.col.Value(i).(string)
+			if !okX || !okY {
+				return nil, fmt.Errorf("%w: + between %T and %T", errs.ErrInvalidOperation, s.col.Value(i), other.col.Value(i))
+			}
+			data[i] = xs + ys
+		}
+		return fromColumn(s.name, column.NewString(data, mask), s.index.Clone()), nil
+	}
+
+	// Generic fallback for object-backed numeric data.
+	n := s.Len()
+	data := make([]float64, n)
+	mask := make([]bool, n)
+	for i := 0; i < n; i++ {
+		if s.col.IsNA(i) || other.col.IsNA(i) {
 			mask[i] = true
 			continue
 		}
-		x, okX := dtype.AsFloat(s.data[i])
-		y, okY := dtype.AsFloat(other.data[i])
+		x, okX := dtype.AsFloat(s.col.Value(i))
+		y, okY := dtype.AsFloat(other.col.Value(i))
 		if !okX || !okY {
-			// String concatenation via Add.
-			if op == "+" {
-				if xs, ok := s.data[i].(string); ok {
-					if ys, ok := other.data[i].(string); ok {
-						data[i] = xs + ys
-						continue
-					}
-				}
-			}
-			return nil, fmt.Errorf("%w: %s between %T and %T", errs.ErrInvalidOperation, op, s.data[i], other.data[i])
+			return nil, fmt.Errorf("%w: %s between %T and %T", errs.ErrInvalidOperation, op, s.col.Value(i), other.col.Value(i))
 		}
-		var r float64
-		switch op {
-		case "+":
-			r = x + y
-		case "-":
-			r = x - y
-		case "*":
-			r = x * y
-		case "/":
-			r = x / y
-		case "%":
-			r = math.Mod(x, y)
-		case "**":
-			r = math.Pow(x, y)
-		}
-		if intResult {
-			data[i] = int64(r)
-		} else {
-			data[i] = r
-		}
+		data[i] = applyOp(op, x, y)
 	}
-	dt := dtype.Float64
-	if intResult {
-		dt = dtype.Int64
-	}
-	if dtype.IsString(s.dtype) && op == "+" {
-		dt = dtype.String
-	}
-	return &Series{name: s.name, dtype: dt, data: data, mask: mask, index: s.index.Clone()}, nil
+	return fromColumn(s.name, column.NewFloat64(data, mask), s.index.Clone()), nil
 }
 
 // Add returns s + other elementwise.
@@ -115,19 +151,16 @@ func (s *Series) PowScalar(v any) (*Series, error) { return s.binop(s.scalarSeri
 
 // Apply maps a function over the values (missing entries stay missing).
 func (s *Series) Apply(fn func(v any) any) *Series {
-	c := s.Copy()
-	for i := range c.data {
-		if c.mask[i] {
+	values := make([]any, s.Len())
+	for i := 0; i < s.Len(); i++ {
+		if s.col.IsNA(i) {
 			continue
 		}
-		v := fn(c.data[i])
+		v := fn(s.col.Value(i))
 		if dtype.IsNA(v) {
-			c.data[i] = nil
-			c.mask[i] = true
 			continue
 		}
-		c.data[i] = v
+		values[i] = v
 	}
-	c.dtype = dtype.InferDType(c.Values())
-	return c
+	return fromColumn(s.name, column.Infer(values), s.index.Clone())
 }

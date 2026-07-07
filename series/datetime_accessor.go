@@ -12,21 +12,18 @@ func (s *Series) Dt() *DatetimeAccessor { return &DatetimeAccessor{s: s} }
 
 func (da *DatetimeAccessor) mapTime(f func(t time.Time) any) *Series {
 	src := da.s
-	data := make([]any, src.Len())
-	mask := make([]bool, src.Len())
-	for i := range src.data {
-		if src.mask[i] {
-			mask[i] = true
+	values := make([]any, src.Len())
+	for i := 0; i < src.Len(); i++ {
+		if src.col.IsNA(i) {
 			continue
 		}
-		t, ok := src.data[i].(time.Time)
+		t, ok := src.col.Value(i).(time.Time)
 		if !ok {
-			mask[i] = true
 			continue
 		}
-		data[i] = f(t)
+		values[i] = f(t)
 	}
-	return NewSeries(src.name, dataWithMask(data, mask), WithIndex(src.index))
+	return NewSeries(src.name, values, WithIndex(src.index))
 }
 
 // Year extracts the year.

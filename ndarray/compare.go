@@ -3,6 +3,9 @@ package ndarray
 import (
 	"fmt"
 	"strings"
+
+	"github.com/arturoeanton/go-pandas/dtype"
+	"github.com/arturoeanton/go-pandas/errs"
 )
 
 // BoolArray is the result of elementwise comparisons: an n-dimensional
@@ -72,50 +75,76 @@ func (b *BoolArray) String() string {
 	return "array([" + strings.Join(parts, ", ") + "])"
 }
 
-// cmpOp applies a boolean predicate over the broadcast of a and b.
-func cmpOp(a, b *NDArray, f func(x, y float64) bool) (*BoolArray, error) {
+// cmpOp applies a boolean predicate over the broadcast of a and b. String
+// arrays support every comparison via lexicographic order; mixed
+// string/numeric comparisons are an error.
+func cmpOp(a, b *NDArray, ff func(x, y float64) bool, sf func(x, y string) bool) (*BoolArray, error) {
 	shape, err := BroadcastShapes(a.shape, b.shape)
 	if err != nil {
 		return nil, err
 	}
 	out := &BoolArray{data: make([]bool, shapeSize(shape)), shape: shape}
+	if a.dtype == dtype.String || b.dtype == dtype.String {
+		la, lb := a.stringLoader(), b.stringLoader()
+		if la == nil || lb == nil {
+			return nil, fmt.Errorf("%w: comparison between %s and %s arrays", errs.ErrTypeMismatch, a.dtype, b.dtype)
+		}
+		iter2(a, b, shape, func(pos, offA, offB int) {
+			out.data[pos] = sf(la(offA), lb(offB))
+		})
+		return out, nil
+	}
+	la, lb := a.floatLoader(), b.floatLoader()
 	iter2(a, b, shape, func(pos, offA, offB int) {
-		out.data[pos] = f(a.data[offA], b.data[offB])
+		out.data[pos] = ff(la(offA), lb(offB))
 	})
 	return out, nil
 }
 
 // Eq returns a == b elementwise.
 func (a *NDArray) Eq(b *NDArray) (*BoolArray, error) {
-	return cmpOp(a, b, func(x, y float64) bool { return x == y })
+	return cmpOp(a, b,
+		func(x, y float64) bool { return x == y },
+		func(x, y string) bool { return x == y })
 }
 
 // Ne returns a != b elementwise.
 func (a *NDArray) Ne(b *NDArray) (*BoolArray, error) {
-	return cmpOp(a, b, func(x, y float64) bool { return x != y })
+	return cmpOp(a, b,
+		func(x, y float64) bool { return x != y },
+		func(x, y string) bool { return x != y })
 }
 
 // Gt returns a > b elementwise.
 func (a *NDArray) Gt(b *NDArray) (*BoolArray, error) {
-	return cmpOp(a, b, func(x, y float64) bool { return x > y })
+	return cmpOp(a, b,
+		func(x, y float64) bool { return x > y },
+		func(x, y string) bool { return x > y })
 }
 
 // Ge returns a >= b elementwise.
 func (a *NDArray) Ge(b *NDArray) (*BoolArray, error) {
-	return cmpOp(a, b, func(x, y float64) bool { return x >= y })
+	return cmpOp(a, b,
+		func(x, y float64) bool { return x >= y },
+		func(x, y string) bool { return x >= y })
 }
 
 // Lt returns a < b elementwise.
 func (a *NDArray) Lt(b *NDArray) (*BoolArray, error) {
-	return cmpOp(a, b, func(x, y float64) bool { return x < y })
+	return cmpOp(a, b,
+		func(x, y float64) bool { return x < y },
+		func(x, y string) bool { return x < y })
 }
 
 // Le returns a <= b elementwise.
 func (a *NDArray) Le(b *NDArray) (*BoolArray, error) {
-	return cmpOp(a, b, func(x, y float64) bool { return x <= y })
+	return cmpOp(a, b,
+		func(x, y float64) bool { return x <= y },
+		func(x, y string) bool { return x <= y })
 }
 
-// GtScalar returns a > v elementwise (and siblings below).
+// GtScalar returns a > v elementwise (and siblings below). Numeric only —
+// panics with ErrTypeMismatch on string arrays.
 func (a *NDArray) GtScalar(v float64) *BoolArray {
 	return a.cmpScalar(func(x float64) bool { return x > v })
 }
@@ -136,10 +165,11 @@ func (a *NDArray) NeScalar(v float64) *BoolArray {
 }
 
 func (a *NDArray) cmpScalar(f func(x float64) bool) *BoolArray {
+	load := a.mustFloatLoader("scalar comparison")
 	out := &BoolArray{data: make([]bool, a.Size()), shape: a.Shape()}
 	i := 0
 	a.iter(func(off int) {
-		out.data[i] = f(a.data[off])
+		out.data[i] = f(load(off))
 		i++
 	})
 	return out

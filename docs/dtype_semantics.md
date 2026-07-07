@@ -24,52 +24,73 @@ pd.ParseDType("number")         // pd.Number (selector pseudo-dtype)
 float, datetime, ...). `pd.Number` matches any numeric dtype in
 `SelectDTypes`.
 
+## Typed storage (v0.3)
+
+Storage is **real**, not logical metadata:
+
+| Data | Series column backing | NDArray backing |
+|---|---|---|
+| bool | `[]bool` + mask | `[]bool` |
+| int | `[]int` + mask | `[]int` |
+| int64 | `[]int64` + mask | `[]int64` |
+| float32 | `[]float32` + mask | `[]float32` |
+| float64 | `[]float64` + mask | `[]float64` |
+| string | `[]string` + mask | `[]string` |
+| time.Time | `[]time.Time` + mask | — |
+| mixed / unsupported | `[]any` (object) + mask | — |
+
+Introspection: `s.StorageDType()`, `s.IsObjectBacked()`,
+`df.StorageDTypes()`, `a.StorageDType()`, `a.RawData()`. For typed-backed
+data `DType()` and `StorageDType()` agree; object-backed Series report
+`Object` storage under whatever logical dtype they carry.
+
+Still object-backed: mixed values, complex numbers, categorical data and
+exotic integer widths inside `[]any` input.
+
 ## Inference
 
 `[]int → Int`, `[]int64 → Int64`, `[]float64 → Float64`, `[]bool → Bool`,
-`[]string → String`, `[]time.Time → datetime64`. Mixed int/float promotes
-to Float64; incompatible mixes fall back to Object; all-NA is Object.
+`[]string → String`, `[]time.Time → datetime64` — all straight into typed
+columns without boxing. Boxed `[]any` input infers: homogeneous values
+get typed storage, mixed int/float promotes to a Float64 column,
+incompatible mixes fall back to Object, all-NA is Object. Missing values
+(nil, NA(), NaT(), NaN) live in the mask, never in the buffer.
 
 ## Promotion
 
-Simplified NumPy rules, verified in `dtype/promote.go`:
+NumPy-style rules, applied by NDArray arithmetic and Series inference
+(verified by dtype golden cases against real NumPy):
 
 ```text
-bool + int      -> int
-int + float     -> float64
-float32+float32 -> float32
-float32 + int64 -> float64
-int32 + int64   -> int64
-signed+unsigned -> int64
-anything+object -> object
-string + number -> object
+bool (+) bool     -> int          (arithmetic; logical stays bool)
+bool + int        -> int
+int + int         -> int
+int + int64       -> int64
+int + float64     -> float64
+any int + float32 -> float64      (documented choice)
+float32 + float32 -> float32
+float32 + float64 -> float64
+int / int         -> float64      (true division)
+string + numeric  -> error
 ```
 
 ## Conversion
 
+`Astype` converts **storage**, not just labels:
+
 ```go
-s2, err := s.Astype(pd.Float64)
-df2, err := df.Astype(map[string]pd.DType{"age": pd.Int64})
-a2, err := arr.Astype(pd.Int64)   // NDArray: truncates like NumPy
-numeric, err := df.SelectDTypes(pd.Include(pd.Number))
+s2, _ := s.Astype(pd.Float64)      // IntColumn -> Float64Column
+a2, _ := a.Astype(pd.Int64)        // []float64 -> []int64 (truncated)
+df2, _ := df.Astype(map[string]pd.DType{"age": pd.Int64})
 ```
 
-String parsing is supported ("42" → 42); invalid conversions return
-`ErrTypeMismatch` naming the offending value. Missing values pass
-through any cast unchanged.
-
-## Nullability
-
-Every Series carries a missing mask independent of its dtype, so every
-dtype is effectively nullable (pandas "Int64"-style). `NullableDType`
-exists as a marker for the future typed-column storage.
-
-## NDArray storage
-
-v0.2 NDArrays store float64 physically; typed constructors
-(`pd.ArrayInt`, `pd.ArrayBool`, ...) and `Astype` record the **logical**
-dtype and normalize values (truncation for ints, 0/1 for bool). True
-typed storage is the v0.4 milestone.
+Rules:
+- float → integer truncates toward zero (NumPy astype semantics).
+- string → numeric parses; invalid strings return ErrTypeMismatch.
+  String→int parses through float, so "2.5" truncates to 2.
+- numeric → string formats values.
+- → bool stores `v != 0`; string "true"/"false"/"1"/"0" parse.
+- Missing values survive every conversion (mask carries over).
 
 ## Display
 

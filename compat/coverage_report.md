@@ -36,12 +36,12 @@ Note that "implemented" includes `partial` rows — 17 of the 91 pandas
 rows are partial (e.g. Query grammar subset, single-column SetIndex,
 PivotTable with one aggregation). See the matrix notes for each.
 
-## NumPy compatibility (52 rows tracked, 46 implemented, 88%)
+## NumPy compatibility (53 rows tracked, 47 implemented, 89%)
 
 | Area | Rows tracked | Implemented | Coverage |
 |---|---:|---:|---:|
 | Constructors | 7 | 7 | 100% |
-| Shape, views and joining | 8 | 8 | 100% |
+| Shape, views and joining | 9 | 9 | 100% |
 | Indexing | 8 | 7 | 87% |
 | Math | 9 | 9 | 100% |
 | Reductions | 6 | 5 | 83% |
@@ -54,10 +54,11 @@ gonum adapter), keepdims/axis tuples, fancy integer indexing, negative
 slice steps, searchsorted/isin, random distributions beyond
 rand/randn/randint.
 
-**Storage honesty:** NDArrays store float64 physically in v0.2.x. The
-typed constructors and `Astype` carry logical dtype metadata and
-normalize values; integers above 2^53 lose precision. See
-[known_differences.md](known_differences.md).
+**Storage (v0.3):** NDArrays and Series columns store real typed
+backings (bool/int/int64/float32/float64/string, plus time for Series);
+`[]any` object storage remains only for mixed values. Verified by 19
+dtype golden cases against real pandas/NumPy plus typed-storage
+acceptance tests. See [known_differences.md](known_differences.md).
 
 ## How to update
 

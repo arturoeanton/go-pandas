@@ -22,10 +22,11 @@ func Seed(seed int64) {
 // Rand returns an array of uniform random samples in [0, 1).
 func Rand(shape ...int) *NDArray {
 	a := Zeros(shape...)
+	d := a.data.([]float64)
 	rngMu.Lock()
 	defer rngMu.Unlock()
-	for i := range a.data {
-		a.data[i] = rng.Float64()
+	for i := range d {
+		d[i] = rng.Float64()
 	}
 	return a
 }
@@ -33,10 +34,11 @@ func Rand(shape ...int) *NDArray {
 // Randn returns an array of standard normal samples.
 func Randn(shape ...int) *NDArray {
 	a := Zeros(shape...)
+	d := a.data.([]float64)
 	rngMu.Lock()
 	defer rngMu.Unlock()
-	for i := range a.data {
-		a.data[i] = rng.NormFloat64()
+	for i := range d {
+		d[i] = rng.NormFloat64()
 	}
 	return a
 }
@@ -44,11 +46,12 @@ func Randn(shape ...int) *NDArray {
 // RandInt returns an array of uniform random integers in [low, high).
 func RandInt(low, high int, shape ...int) *NDArray {
 	a := Zeros(shape...)
+	d := a.data.([]float64)
 	span := high - low
 	rngMu.Lock()
 	defer rngMu.Unlock()
-	for i := range a.data {
-		a.data[i] = float64(low + rng.Intn(span))
+	for i := range d {
+		d[i] = float64(low + rng.Intn(span))
 	}
 	return a
 }

@@ -1,8 +1,8 @@
 # NumPy compatibility matrix
 
 Statuses: `done`, `partial`, `planned`, `not_supported`.
-v0.2 arrays store float64 physically with logical dtypes; typed storage is
-planned for v0.4 (see [known_differences.md](known_differences.md)).
+Since v0.3 arrays store real typed backings ([]bool, []int, []int64,
+[]float32, []float64, []string); see [known_differences.md](known_differences.md).
 
 ## Constructors
 
@@ -10,17 +10,18 @@ planned for v0.4 (see [known_differences.md](known_differences.md)).
 |---|---|---|---|
 | np.array | pd.Array / pd.Array2D / pd.FromSlice | done | |
 | np.asarray | pd.AsArray / pd.ArrayOf | done | any numeric slice |
-| typed arrays | pd.ArrayInt / ArrayInt64 / ArrayFloat32 / ArrayFloat64 / ArrayBool | partial | logical dtype, float64 storage |
+| typed arrays | pd.ArrayInt / ArrayInt64 / ArrayFloat32 / ArrayFloat64 / ArrayBool / ArrayString | done | real typed backings (v0.3) |
 | np.zeros / np.ones / np.full / np.empty | pd.Zeros / Ones / Full / Empty | done | |
 | np.arange / np.linspace / np.logspace | pd.Arange / Linspace / Logspace | done | |
 | np.eye / np.identity / np.diag | pd.Eye / Identity / Diag | done | |
-| a.astype(t) | a.Astype(dt) | partial | truncates ints; logical dtype |
+| a.astype(t) | a.Astype(dt) | done | converts real storage; float->int truncates |
 
 ## Shape, views and joining
 
 | NumPy API | go-pandas API | Status | Notes |
 |---|---|---|---|
 | a.shape / a.ndim / a.size / a.strides / a.dtype | a.Shape()/NDim()/Size()/Strides()/DType() | done | |
+| a.tolist() / raw buffer | a.Values() / a.RawData() / a.StorageDType() | done | typed introspection (v0.3) |
 | a.reshape | a.Reshape(...) | done | view when contiguous; -1 inference |
 | a.flatten / a.ravel | a.Flatten() / a.Ravel() | done | ravel: view when contiguous |
 | a.T / np.transpose | a.T() / a.Transpose(axes...) | done | views |
@@ -46,7 +47,7 @@ planned for v0.4 (see [known_differences.md](known_differences.md)).
 
 | NumPy API | go-pandas API | Status | Notes |
 |---|---|---|---|
-| broadcasting | all elementwise ops | done | full trailing-dimension rule |
+| broadcasting | all elementwise ops | done | full trailing-dimension rule, dtype-promoting |
 | np.add/subtract/multiply/divide/power | pd.Add/Subtract/Multiply/Divide/Power (+ methods) | done | |
 | np.maximum / np.minimum | pd.Maximum / pd.Minimum | done | |
 | np.abs/sqrt/exp/log/log2/log10 | pd.Abs/Sqrt/Exp/Log + methods | done | |

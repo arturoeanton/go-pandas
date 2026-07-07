@@ -6,6 +6,7 @@ package compat_test
 import (
 	"math"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	pd "github.com/arturoeanton/go-pandas"
@@ -44,17 +45,67 @@ func runSuites(t *testing.T, dir string, registry map[string]caseFn) {
 				if err != nil {
 					t.Fatalf("%s: %v", c.Operation, err)
 				}
-				dispatch(t, got, expected)
+				dispatch(t, golden.Suite, got, expected)
 			})
 		}
 	}
 }
 
+// numpyKind maps go-pandas dtypes to NumPy dtype.kind characters.
+func numpyKind(dt pd.DType) string {
+	switch {
+	case dt == pd.Bool:
+		return "b"
+	case dt == pd.Int || dt == pd.Int64:
+		return "i"
+	case dt == pd.Float32 || dt == pd.Float64:
+		return "f"
+	case dt == pd.String:
+		return "U"
+	case dt == pd.Time:
+		return "M"
+	}
+	return "?"
+}
+
+// pandasKind maps go-pandas dtypes to pandas dtype.kind characters
+// (pandas string series report object kind).
+func pandasKind(dt pd.DType) string {
+	if dt == pd.String || dt == pd.Object {
+		return "O"
+	}
+	return numpyKind(dt)
+}
+
+func kindOf(suite string, got any) (string, bool) {
+	var dt pd.DType
+	switch v := got.(type) {
+	case *pd.NDArray:
+		dt = v.DType()
+	case *pd.Series:
+		dt = v.DType()
+	default:
+		return "", false
+	}
+	if strings.HasPrefix(suite, "pandas") {
+		return pandasKind(dt), true
+	}
+	return numpyKind(dt), true
+}
+
 // dispatch compares a case result against its expected payload based on
 // which expectation fields are populated.
-func dispatch(t *testing.T, got any, expected testutil.GoldenExpected) {
+func dispatch(t *testing.T, suite string, got any, expected testutil.GoldenExpected) {
 	t.Helper()
 	switch {
+	case expected.Kind != "":
+		kind, ok := kindOf(suite, got)
+		if !ok {
+			t.Fatalf("dtype case needs a Series or NDArray result, got %T", got)
+		}
+		if kind != expected.Kind {
+			t.Fatalf("dtype kind = %q, want %q", kind, expected.Kind)
+		}
 	case expected.BoolData != nil:
 		AssertIsBoolArray(t, got, expected)
 	case expected.Scalar != nil:

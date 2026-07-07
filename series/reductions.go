@@ -34,18 +34,32 @@ func reduceOpts(opts []ReduceOption) ReduceOptions {
 
 // numericValues extracts the non-missing values as float64. When skipna is
 // false and a missing value exists, ok is false (result must be NaN).
+// Typed numeric columns take the buffer fast path.
 func (s *Series) numericValues(o ReduceOptions) ([]float64, bool, error) {
+	if fs, mask, fast := s.col.Float64s(); fast {
+		out := make([]float64, 0, len(fs))
+		for i := range fs {
+			if mask[i] {
+				if !o.SkipNA {
+					return nil, false, nil
+				}
+				continue
+			}
+			out = append(out, fs[i])
+		}
+		return out, true, nil
+	}
 	var out []float64
-	for i := range s.data {
-		if s.mask[i] {
+	for i := 0; i < s.Len(); i++ {
+		if s.col.IsNA(i) {
 			if !o.SkipNA {
 				return nil, false, nil
 			}
 			continue
 		}
-		f, ok := dtype.AsFloat(s.data[i])
+		f, ok := dtype.AsFloat(s.col.Value(i))
 		if !ok {
-			return nil, false, fmt.Errorf("%w: non-numeric value %T in reduction", errs.ErrTypeMismatch, s.data[i])
+			return nil, false, fmt.Errorf("%w: non-numeric value %T in reduction", errs.ErrTypeMismatch, s.col.Value(i))
 		}
 		out = append(out, f)
 	}
@@ -55,8 +69,8 @@ func (s *Series) numericValues(o ReduceOptions) ([]float64, bool, error) {
 // Count returns the number of non-missing values.
 func (s *Series) Count() int {
 	n := 0
-	for _, m := range s.mask {
-		if !m {
+	for i := 0; i < s.Len(); i++ {
+		if !s.col.IsNA(i) {
 			n++
 		}
 	}
@@ -148,24 +162,25 @@ func (s *Series) Max(opts ...ReduceOption) (any, error) {
 func (s *Series) extreme(o ReduceOptions, better func(c int) bool) (any, error) {
 	var best any
 	found := false
-	for i := range s.data {
-		if s.mask[i] {
+	for i := 0; i < s.Len(); i++ {
+		if s.col.IsNA(i) {
 			if !o.SkipNA {
 				return nil, nil
 			}
 			continue
 		}
+		v := s.col.Value(i)
 		if !found {
-			best = s.data[i]
+			best = v
 			found = true
 			continue
 		}
-		c, ok := expr.CompareValues(s.data[i], best)
+		c, ok := expr.CompareValues(v, best)
 		if !ok {
-			return nil, fmt.Errorf("%w: cannot order %T against %T", errs.ErrTypeMismatch, s.data[i], best)
+			return nil, fmt.Errorf("%w: cannot order %T against %T", errs.ErrTypeMismatch, v, best)
 		}
 		if better(c) {
-			best = s.data[i]
+			best = v
 		}
 	}
 	if !found {

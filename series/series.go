@@ -1,5 +1,5 @@
 // Package series implements the pandas-style Series: a labeled 1-D array
-// with a dtype, a missing-value mask and an index.
+// backed by typed column storage (v0.3) with a missing-value mask.
 package series
 
 import (
@@ -12,17 +12,17 @@ import (
 	"github.com/arturoeanton/go-pandas/dtype"
 	"github.com/arturoeanton/go-pandas/errs"
 	"github.com/arturoeanton/go-pandas/index"
+	"github.com/arturoeanton/go-pandas/internal/column"
 	"github.com/arturoeanton/go-pandas/internal/display"
 	"github.com/arturoeanton/go-pandas/ndarray"
 )
 
-// Series is a labeled one-dimensional array. mask[i] == true means the
-// value at position i is missing.
+// Series is a labeled one-dimensional array. Values live in a typed
+// column (int/float/bool/string/time backing) whenever the data is
+// homogeneous; mixed data falls back to object storage.
 type Series struct {
 	name  string
-	dtype dtype.DType
-	data  []any
-	mask  []bool
+	col   column.Column
 	index index.Index
 }
 
@@ -37,41 +37,50 @@ func (s *Series) Rename(name string) *Series {
 }
 
 // Len returns the number of elements.
-func (s *Series) Len() int { return len(s.data) }
+func (s *Series) Len() int { return s.col.Len() }
 
 // DType returns the element dtype.
-func (s *Series) DType() dtype.DType { return s.dtype }
+func (s *Series) DType() dtype.DType { return s.col.DType() }
+
+// StorageDType returns the dtype of the physical storage: identical to
+// DType for typed-backed series, Object for []any-backed series.
+func (s *Series) StorageDType() dtype.DType { return column.StorageDType(s.col) }
+
+// IsObjectBacked reports whether the series stores boxed []any values
+// instead of a typed column.
+func (s *Series) IsObjectBacked() bool { return column.IsObjectBacked(s.col) }
 
 // Index returns the axis labels.
 func (s *Series) Index() index.Index { return s.index }
 
 // Values returns the values with missing entries as nil.
-func (s *Series) Values() []any {
-	out := make([]any, len(s.data))
-	for i, v := range s.data {
-		if s.mask[i] {
-			out[i] = nil
-		} else {
-			out[i] = v
-		}
-	}
-	return out
-}
+func (s *Series) Values() []any { return s.col.Values() }
 
 // ToList is an alias of Values, mirroring Series.tolist().
 func (s *Series) ToList() []any { return s.Values() }
 
 // ToFloat64 converts to a float64 slice; missing values become NaN.
 func (s *Series) ToFloat64() ([]float64, error) {
-	out := make([]float64, len(s.data))
-	for i, v := range s.data {
-		if s.mask[i] {
+	if fs, mask, ok := s.col.Float64s(); ok {
+		out := make([]float64, len(fs))
+		for i := range fs {
+			if mask[i] {
+				out[i] = math.NaN()
+			} else {
+				out[i] = fs[i]
+			}
+		}
+		return out, nil
+	}
+	out := make([]float64, s.Len())
+	for i := 0; i < s.Len(); i++ {
+		if s.col.IsNA(i) {
 			out[i] = math.NaN()
 			continue
 		}
-		f, ok := dtype.AsFloat(v)
+		f, ok := dtype.AsFloat(s.col.Value(i))
 		if !ok {
-			return nil, fmt.Errorf("%w: cannot convert %T at position %d to float64", errs.ErrTypeMismatch, v, i)
+			return nil, fmt.Errorf("%w: cannot convert %T at position %d to float64", errs.ErrTypeMismatch, s.col.Value(i), i)
 		}
 		out[i] = f
 	}
@@ -91,17 +100,15 @@ func (s *Series) ToNDArray() (*ndarray.NDArray, error) {
 func (s *Series) Copy() *Series {
 	return &Series{
 		name:  s.name,
-		dtype: s.dtype,
-		data:  append([]any(nil), s.data...),
-		mask:  append([]bool(nil), s.mask...),
+		col:   s.col.Copy(),
 		index: s.index.Clone(),
 	}
 }
 
 // HasNA reports whether the series contains missing values.
 func (s *Series) HasNA() bool {
-	for _, m := range s.mask {
-		if m {
+	for i := 0; i < s.col.Len(); i++ {
+		if s.col.IsNA(i) {
 			return true
 		}
 	}
@@ -109,14 +116,22 @@ func (s *Series) HasNA() bool {
 }
 
 // isNAAt reports whether position i holds a missing value.
-func (s *Series) isNAAt(i int) bool { return s.mask[i] }
+func (s *Series) isNAAt(i int) bool { return s.col.IsNA(i) }
 
 // valueAt returns the value at position i, nil when missing.
 func (s *Series) valueAt(i int) any {
-	if s.mask[i] {
+	if s.col.IsNA(i) {
 		return nil
 	}
-	return s.data[i]
+	return s.col.Value(i)
+}
+
+// fromColumn assembles a series around an existing column.
+func fromColumn(name string, col column.Column, idx index.Index) *Series {
+	if idx == nil || idx.Len() != col.Len() {
+		idx = index.NewRangeIndex(col.Len())
+	}
+	return &Series{name: name, col: col, index: idx}
 }
 
 // FormatValue renders a single cell the way pandas would (<NA>, NaT...).
@@ -178,7 +193,7 @@ func (s *Series) String() string {
 		if len(labels[i]) > width {
 			width = len(labels[i])
 		}
-		cells[i] = FormatValue(s.data[i], s.mask[i])
+		cells[i] = FormatValue(s.col.Value(i), s.col.IsNA(i))
 	}
 	for i := 0; i < shown; i++ {
 		b.WriteString(fmt.Sprintf("%-*s    %s\n", width, labels[i], cells[i]))
@@ -186,6 +201,6 @@ func (s *Series) String() string {
 	if truncated {
 		b.WriteString("...\n")
 	}
-	b.WriteString(fmt.Sprintf("Name: %s, dtype: %s", s.name, s.dtype))
+	b.WriteString(fmt.Sprintf("Name: %s, dtype: %s", s.name, s.DType()))
 	return b.String()
 }

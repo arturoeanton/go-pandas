@@ -1,0 +1,83 @@
+{
+ "suite": "numpy.dtypes",
+ "numpy_version": "2.0.2",
+ "cases": [
+  {
+   "name": "dtype_int_array",
+   "operation": "np.array([1,2,3]).dtype.kind",
+   "expected": {
+    "kind": "i"
+   }
+  },
+  {
+   "name": "dtype_float_array",
+   "operation": "np.array([1.0,2.0]).dtype.kind",
+   "expected": {
+    "kind": "f"
+   }
+  },
+  {
+   "name": "dtype_bool_array",
+   "operation": "np.array([True,False]).dtype.kind",
+   "expected": {
+    "kind": "b"
+   }
+  },
+  {
+   "name": "dtype_string_array",
+   "operation": "np.array(['a','b']).dtype.kind",
+   "expected": {
+    "kind": "U"
+   }
+  },
+  {
+   "name": "dtype_int_plus_float",
+   "operation": "(int_arr + float_arr).dtype.kind",
+   "expected": {
+    "kind": "f"
+   }
+  },
+  {
+   "name": "dtype_int_plus_int",
+   "operation": "(int_arr + int_arr).dtype.kind",
+   "expected": {
+    "kind": "i"
+   }
+  },
+  {
+   "name": "dtype_int_div_int",
+   "operation": "(int_arr / int_arr).dtype.kind",
+   "expected": {
+    "kind": "f"
+   }
+  },
+  {
+   "name": "dtype_bool_plus_int",
+   "operation": "(bool_arr + int_arr).dtype.kind",
+   "expected": {
+    "kind": "i"
+   }
+  },
+  {
+   "name": "dtype_astype_int",
+   "operation": "float_arr.astype(int).dtype.kind",
+   "expected": {
+    "kind": "i"
+   }
+  },
+  {
+   "name": "dtype_abs_int",
+   "operation": "np.abs(int_arr).dtype.kind",
+   "expected": {
+    "kind": "i"
+   }
+  },
+  {
+   "name": "dtype_sqrt_int",
+   "operation": "np.sqrt(int_arr).dtype.kind",
+   "expected": {
+    "kind": "f"
+   }
+  }
+ ]
+}
