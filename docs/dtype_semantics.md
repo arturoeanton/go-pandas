@@ -47,6 +47,16 @@ data `DType()` and `StorageDType()` agree; object-backed Series report
 Still object-backed: mixed values, complex numbers, categorical data and
 exotic integer widths inside `[]any` input.
 
+## Typed gather and filtering
+
+v0.4.1 optimizes DataFrame/Series filtering by gathering typed column
+buffers directly. Take, Slice, Head/Tail, DropNA and Where never convert
+typed values through `any`: each output column allocates one backing
+slice plus one mask, and index labels gather typed as well (constant-step
+selections over a RangeIndex stay a RangeIndex; irregular ones become an
+Int64Index whose labels still box as plain ints in At/Values). Slice
+returns copies, not views. Object-backed columns keep the boxed path.
+
 ## Inference
 
 `[]int → Int`, `[]int64 → Int64`, `[]float64 → Float64`, `[]bool → Bool`,

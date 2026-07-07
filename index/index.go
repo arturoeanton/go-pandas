@@ -28,8 +28,82 @@ type Index interface {
 }
 
 // Take builds a new index from a list of positions. A negative position
-// yields a missing label (used by outer joins).
+// yields a missing label (used by outer joins). Typed indexes gather
+// without boxing (v0.4.1): RangeIndex yields a RangeIndex when the
+// selected labels keep a constant step, and an Int64Index otherwise;
+// StringIndex and DatetimeIndex gather their typed backings.
 func Take(idx Index, positions []int) Index {
+	for _, p := range positions {
+		if p < 0 {
+			return takeBoxed(idx, positions)
+		}
+	}
+	switch ix := idx.(type) {
+	case *RangeIndex:
+		return takeRange(ix, positions)
+	case *Int64Index:
+		values := make([]int64, len(positions))
+		for i, p := range positions {
+			values[i] = ix.values[p]
+		}
+		return NewInt64Index(values, ix.name)
+	case *StringIndex:
+		values := make([]string, len(positions))
+		for i, p := range positions {
+			values[i] = ix.values[p]
+		}
+		return NewStringIndex(values, ix.name)
+	case *DatetimeIndex:
+		values := make([]time.Time, len(positions))
+		for i, p := range positions {
+			values[i] = ix.values[p]
+		}
+		return NewDatetimeIndex(values, ix.name)
+	}
+	return takeBoxed(idx, positions)
+}
+
+// takeRange gathers a RangeIndex: constant-step selections stay a
+// RangeIndex, anything else becomes an Int64Index of the labels.
+func takeRange(ix *RangeIndex, positions []int) Index {
+	label := func(p int) int64 { return int64(ix.Start + p*ix.Step) }
+	n := len(positions)
+	if n == 0 {
+		return &RangeIndex{Start: ix.Start, Stop: ix.Start, Step: max(ix.Step, 1)}
+	}
+	constantStep := n > 1
+	var step int
+	if n > 1 {
+		step = positions[1] - positions[0]
+		if step == 0 {
+			constantStep = false
+		}
+		for i := 2; i < n && constantStep; i++ {
+			if positions[i]-positions[i-1] != step {
+				constantStep = false
+			}
+		}
+	}
+	if n == 1 {
+		first := int(label(positions[0]))
+		return &RangeIndex{Start: first, Stop: first + 1, Step: 1}
+	}
+	if constantStep {
+		lstep := step * ix.Step
+		first := int(label(positions[0]))
+		last := int(label(positions[n-1]))
+		return &RangeIndex{Start: first, Stop: last + lstep, Step: lstep}
+	}
+	values := make([]int64, n)
+	for i, p := range positions {
+		values[i] = label(p)
+	}
+	return NewInt64Index(values, ix.name)
+}
+
+// takeBoxed is the generic gather used for heterogeneous indexes and for
+// selections containing negative (missing-label) positions.
+func takeBoxed(idx Index, positions []int) Index {
 	values := make([]any, len(positions))
 	for i, p := range positions {
 		if p < 0 {

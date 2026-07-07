@@ -60,7 +60,13 @@ func newFrame(cols []*series.Series, idx index.Index) (*DataFrame, error) {
 			return nil, fmt.Errorf("%w: duplicate column %q", errs.ErrInvalidOperation, c.Name())
 		}
 		df.byName[c.Name()] = len(df.columns)
-		df.columns = append(df.columns, c.WithIndexed(idx))
+		// Columns already carrying this exact index (typed gather paths)
+		// attach without the WithIndexed deep copy (v0.4.1).
+		if c.Index() == idx {
+			df.columns = append(df.columns, c)
+		} else {
+			df.columns = append(df.columns, c.WithIndexed(idx))
+		}
 	}
 	return df, nil
 }

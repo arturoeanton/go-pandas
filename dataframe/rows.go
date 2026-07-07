@@ -64,17 +64,20 @@ func (df *DataFrame) Slice(start, stop int) (*DataFrame, error) {
 	return df.Take(pos)
 }
 
-// Take selects rows by position.
+// Take selects rows by position. The gather is fully typed (v0.4.1):
+// each column buffer is gathered directly and the row index is taken
+// once and shared across the result columns.
 func (df *DataFrame) Take(pos []int) (*DataFrame, error) {
+	idx := index.Take(df.index, pos)
 	cols := make([]*series.Series, len(df.columns))
 	for j, c := range df.columns {
-		taken, err := c.Take(pos)
+		taken, err := c.Storage().Take(pos)
 		if err != nil {
 			return nil, err
 		}
-		cols[j] = taken
+		cols[j] = series.Assemble(c.Name(), taken, idx)
 	}
-	return newFrame(cols, index.Take(df.index, pos))
+	return newFrame(cols, idx)
 }
 
 // SampleOptions configures Sample.

@@ -83,6 +83,15 @@ root-function parity). Inside expressions use the `*Expr` suffix:
 - Unknown labels return `ErrInvalidIndex`; out-of-range positions return
   `ErrIndexOutOfBounds`.
 
+## Gather semantics (v0.4.1)
+
+`DataFrame.Take/Slice` and `Series.Take/Slice` return **copies**, never
+views (unlike NDArray slicing, which is documented as views). Filtering
+a default RangeIndex produces an `Int64Index` (or a `RangeIndex` when
+the selected labels keep a constant step) — labels compare and print
+exactly as before. Take with negative positions (outer-join fills)
+falls back to a boxed index with missing labels.
+
 ## Merge
 
 - With `LeftOn`/`RightOn`, pandas keeps both key columns; go-pandas keeps

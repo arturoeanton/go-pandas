@@ -32,6 +32,47 @@
    }
   },
   {
+   "name": "iloc_take",
+   "operation": "df.iloc[[0, 2, 4]]",
+   "expected": {
+    "columns": [
+     "country",
+     "name",
+     "age",
+     "salary",
+     "dept"
+    ],
+    "rows": [
+     [
+      "AR",
+      "Ana",
+      30,
+      1000.0,
+      "eng"
+     ],
+     [
+      "BR",
+      "Joao",
+      35,
+      1500.0,
+      "eng"
+     ],
+     [
+      "AR",
+      "Mia",
+      22,
+      800.0,
+      "sales"
+     ]
+    ],
+    "index": [
+     "0",
+     "2",
+     "4"
+    ]
+   }
+  },
+  {
    "name": "tail_2",
    "operation": "df.tail(2)",
    "expected": {

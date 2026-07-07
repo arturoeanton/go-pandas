@@ -148,6 +148,7 @@ def dataframe_core():
     )
     cases = [
         case("head_2", "df.head(2)", ser_frame(df.head(2))),
+        case("iloc_take", "df.iloc[[0, 2, 4]]", ser_frame(df.iloc[[0, 2, 4]], with_index=True)),
         case("tail_2", "df.tail(2)", ser_frame(df.tail(2))),
         case("select_name_age", "df[['name','age']]", ser_frame(df[["name", "age"]])),
         case("drop_columns", "df.drop(columns=['dept','name'])", ser_frame(df.drop(columns=["dept", "name"]))),

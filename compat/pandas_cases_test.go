@@ -62,6 +62,9 @@ func dupFrame(t *testing.T) *pd.DataFrame {
 var pandasCases = map[string]caseFn{
 	// dataframe_core ------------------------------------------------------
 	"head_2": func(t *testing.T) (any, error) { return peopleFrame(t).Head(2), nil },
+	"iloc_take": func(t *testing.T) (any, error) {
+		return peopleFrame(t).ILoc().Rows(0, 2, 4).Get()
+	},
 	"tail_2": func(t *testing.T) (any, error) { return peopleFrame(t).Tail(2), nil },
 	"select_name_age": func(t *testing.T) (any, error) {
 		return peopleFrame(t).Select("name", "age")

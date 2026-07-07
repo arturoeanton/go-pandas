@@ -19,3 +19,12 @@ func FromColumn(name string, col column.Column, idx index.Index) *Series {
 	}
 	return fromColumn(name, col, idx)
 }
+
+// Assemble is the zero-copy frame-construction fast path (v0.4.1): the
+// series takes ownership of the column and SHARES the index value
+// (indexes are read-only by convention). Callers must not mutate either
+// afterwards; DataFrame gather paths construct one index and share it
+// across every column.
+func Assemble(name string, col column.Column, idx index.Index) *Series {
+	return fromColumn(name, col, idx)
+}

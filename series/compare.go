@@ -3,6 +3,7 @@ package series
 import (
 	"github.com/arturoeanton/go-pandas/dtype"
 	"github.com/arturoeanton/go-pandas/expr"
+	"github.com/arturoeanton/go-pandas/internal/column"
 )
 
 // cmp builds a boolean series from a per-position predicate. Missing
@@ -120,8 +121,16 @@ func (s *Series) IsIn(values ...any) *Series {
 	})
 }
 
-// AsMask converts a Bool series to []bool (missing -> false).
+// AsMask converts a Bool series to []bool (missing -> false). Bool
+// columns take a buffer fast path without boxing (v0.4.1).
 func (s *Series) AsMask() []bool {
+	if data, mask, ok := column.Bools(s.col); ok {
+		out := make([]bool, len(data))
+		for i, v := range data {
+			out[i] = v && !mask[i]
+		}
+		return out
+	}
 	out := make([]bool, s.Len())
 	for i := range out {
 		if s.col.IsNA(i) {

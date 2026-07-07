@@ -1,5 +1,45 @@
 # Changelog
 
+## v0.4.1 - Typed gather and Take hardening
+
+Performance patch release: row gathering stops boxing.
+
+### Improved
+- `DataFrame.Take` gathers typed column buffers directly and takes the
+  row index once, sharing it across result columns (previously every
+  column re-took and re-boxed the index, and `newFrame` deep-copied each
+  column a second time).
+- `Series.Take`/`Slice`/`Head`/`Tail`/`DropNA` preserve typed storage
+  with exactly one backing slice + one mask allocation per output.
+- `index.Take` is typed: `StringIndex` gathers `[]string`,
+  `DatetimeIndex` gathers `[]time.Time`, and a `RangeIndex` selection
+  stays a `RangeIndex` when the chosen labels keep a constant step —
+  otherwise it becomes the new `Int64Index` (integer labels backed by
+  `[]int64`, boxing as plain ints in `At`/`Values`). Negative positions
+  (outer-join fills) keep the boxed fallback with missing labels.
+- `StringIndex` and `Int64Index` build their label-lookup maps lazily
+  (sync.Once), so gather-heavy paths never pay for them.
+- `Mask.Selected` pre-counts and allocates once; new
+  `expr.PositionsFromMask` / `expr.CountTrueMask` helpers.
+- `Series.AsMask` reads bool buffers directly.
+
+### Fixed
+- Nothing user-visible: 231 goldens (new: `df.iloc[[0,2,4]]` verifying
+  index labels against pandas), preservation, immutability and fuzz
+  tests lock the gather behavior.
+
+### Performance (100K rows, Apple M4, measured)
+- Where numeric: 4.3 ms / ~260K allocs → **0.89 ms / 24 allocs**.
+- Query: 3.2 ms / ~186K allocs → 0.90 ms / 44 allocs.
+- DataFrame.Take (33K positions): 0.21 ms / 19 allocs;
+  Series.Take: 73 µs / 5 allocs; Index.Take (range→Int64): 26 µs /
+  2 allocs; PositionsFromMask: 1 alloc; DropNA: 0.91 ms / 44 allocs.
+
+### Known limitations
+- `DataFrame.Slice`/`Series.Slice` return copies, not views (documented).
+- GroupBy still boxes group keys; typed groupby keys are the next
+  optimization target.
+
 ## v0.4.0 - Columnar Expression Engine
 
 ### Added

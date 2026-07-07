@@ -13,12 +13,12 @@
 go-pandas is a compatibility-oriented data toolkit: pandas-style
 `DataFrame`/`Series` and NumPy-style `NDArray` with the same concepts,
 names and behavior — verified against **golden outputs generated from
-real pandas and NumPy** (230 test cases, pandas 2.3 / NumPy 2.0).
+real pandas and NumPy** (231 test cases, pandas 2.3 / NumPy 2.0).
 
 Since v0.4, `Where`/`AssignExpr`/`Query` run on a **columnar expression
 engine**: typed kernels over column buffers instead of a map per row
-(filters ~4x faster, expression assignment ~13x, `pd.DebugPlan` shows the
-chosen path). Since v0.3 storage is **typed**: `pd.ArrayInt` really stores `[]int`,
+(a 100K-row numeric filter runs in ~0.9 ms with 24 allocations —
+~20x faster than the row-map path; `pd.DebugPlan` shows the chosen path). Since v0.3 storage is **typed**: `pd.ArrayInt` really stores `[]int`,
 `pd.SeriesOf("x", []string{...})` really stores `[]string`, DataFrame
 columns and CSV parsing infer typed columns, and arithmetic promotes
 dtypes NumPy-style (`int + float64 → float64`). Mixed data falls back to

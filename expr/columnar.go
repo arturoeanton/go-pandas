@@ -41,9 +41,22 @@ func newMask(n int) *Mask {
 	return &Mask{Data: make([]bool, n), NA: make([]bool, n)}
 }
 
+// CountSelected returns how many rows the mask keeps (NA counts as not
+// selected).
+func (m *Mask) CountSelected() int {
+	n := 0
+	for i, keep := range m.Data {
+		if keep && !m.NA[i] {
+			n++
+		}
+	}
+	return n
+}
+
 // Selected returns the row positions kept by the mask (NA rows drop).
+// The result is allocated exactly once from a pre-count (v0.4.1).
 func (m *Mask) Selected() []int {
-	var pos []int
+	pos := make([]int, 0, m.CountSelected())
 	for i, keep := range m.Data {
 		if keep && !m.NA[i] {
 			pos = append(pos, i)
@@ -51,6 +64,12 @@ func (m *Mask) Selected() []int {
 	}
 	return pos
 }
+
+// PositionsFromMask is the package-level spelling of Mask.Selected.
+func PositionsFromMask(m *Mask) []int { return m.Selected() }
+
+// CountTrueMask is the package-level spelling of Mask.CountSelected.
+func CountTrueMask(m *Mask) int { return m.CountSelected() }
 
 // BoolColumn converts the mask into a Bool column. NA predicate results
 // become false, matching the row evaluator and pandas' classic bool

@@ -1,6 +1,13 @@
 # Roadmap
 
-## v0.4 (this release) — columnar expression engine
+## v0.4.1 (this release) — typed gather
+
+- DataFrame/Series/Index Take without boxing: typed column buffers,
+  Int64Index for irregular integer selections, RangeIndex preserved for
+  constant-step selections, lazy label lookups. 100K-row filters drop
+  from ~260K to ~24 allocations.
+
+## v0.4 — columnar expression engine
 
 - Where/AssignExpr/Query evaluate over typed column buffers with
   three-valued NA masks and Kleene logic; row-map evaluation remains the
@@ -44,7 +51,6 @@
 
 ## v0.6 — performance backends
 
-- Typed index gather (remove label boxing in Take/Where).
 - Integer compute kernels (skip the float64 pass); typed groupby keys.
 - Arrow interchange; Parquet and DuckDB adapters; gonum linalg adapter
   (det/inv/solve/eig/SVD).

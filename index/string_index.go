@@ -1,13 +1,18 @@
 package index
 
-import "fmt"
+import (
+	"fmt"
+	"sync"
+)
 
 // StringIndex is a label index backed by strings.
 type StringIndex struct {
 	values []string
 	name   string
-	// lookup caches label -> positions for O(1) Pos.
-	lookup map[string][]int
+	// lookup caches label -> positions for O(1) Pos; built lazily so
+	// gather-heavy paths (filtering) never pay for it (v0.4.1).
+	lookupOnce sync.Once
+	lookup     map[string][]int
 }
 
 // NewStringIndex builds a StringIndex, optionally named.
@@ -16,16 +21,16 @@ func NewStringIndex(values []string, name ...string) Index {
 	if len(name) > 0 {
 		n = name[0]
 	}
-	ix := &StringIndex{values: append([]string(nil), values...), name: n}
-	ix.buildLookup()
-	return ix
+	return &StringIndex{values: append([]string(nil), values...), name: n}
 }
 
 func (ix *StringIndex) buildLookup() {
-	ix.lookup = make(map[string][]int, len(ix.values))
-	for i, v := range ix.values {
-		ix.lookup[v] = append(ix.lookup[v], i)
-	}
+	ix.lookupOnce.Do(func() {
+		ix.lookup = make(map[string][]int, len(ix.values))
+		for i, v := range ix.values {
+			ix.lookup[v] = append(ix.lookup[v], i)
+		}
+	})
 }
 
 func (ix *StringIndex) Name() string   { return ix.name }
@@ -45,6 +50,7 @@ func (ix *StringIndex) Pos(label any) (int, bool) {
 	if !ok {
 		return -1, false
 	}
+	ix.buildLookup()
 	if ps := ix.lookup[s]; len(ps) > 0 {
 		return ps[0], true
 	}
@@ -56,6 +62,7 @@ func (ix *StringIndex) Positions(label any) []int {
 	if !ok {
 		return nil
 	}
+	ix.buildLookup()
 	return append([]int(nil), ix.lookup[s]...)
 }
 

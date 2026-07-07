@@ -22,16 +22,20 @@ BenchmarkNDArraySum1M             ~2.7 ms/op
 BenchmarkNDArrayAstypeIntToFloat  ~3.4 ms/op, 7 allocs (was ~10 ms / 1M allocs boxed)
 ```
 
-Columnar expression engine vs row-map fallback (the v0.4 win, 100K rows):
+Columnar engine + typed gather (v0.4/v0.4.1, 100K rows):
 
 ```text
-BenchmarkWhereNumericColumnar100K        ~4.3 ms/op, 260K allocs
-BenchmarkWhereNumericRowMap100K          ~17.3 ms/op, 560K allocs   (~4x slower)
-BenchmarkAssignExprNumericColumnar100K   ~1.3 ms/op, 63 allocs
-BenchmarkAssignExprNumericRowMap100K     ~16.4 ms/op, 386K allocs   (~13x slower)
-BenchmarkQueryNumericColumnar100K        ~3.2 ms/op
-BenchmarkStringContainsColumnar100K      ~0.62 ms/op, 31 allocs
-BenchmarkBooleanAndColumnar100K          ~5.1 ms/op
+BenchmarkWhereNumericColumnar100K        ~0.89 ms/op, 24 allocs   (v0.4.0: 4.3 ms / 260K allocs)
+BenchmarkWhereNumericRowMap100K          ~17 ms/op, 560K allocs   (fallback)
+BenchmarkAssignExprNumericColumnar100K   ~1.3 ms/op, 63 allocs    (row-map: 16.4 ms / 386K)
+BenchmarkQueryNumericColumnar100K        ~0.90 ms/op, 44 allocs
+BenchmarkDataFrameWhereStringColumnar100K ~0.65 ms/op, 23 allocs
+BenchmarkDataFrameTake100K (33K rows)    ~0.21 ms/op, 19 allocs
+BenchmarkSeriesTake100K                  ~73 µs/op, 5 allocs
+BenchmarkIndexTakeRange100K              ~26 µs/op, 2 allocs
+BenchmarkIndexTakeString100K             ~0.21 ms/op, 3 allocs
+BenchmarkPositionsFromMask100K           ~0.10 ms/op, 1 alloc
+BenchmarkDropNA100K                      ~0.91 ms/op, 44 allocs
 ```
 
 Typed vs object storage (the v0.3 win):
@@ -47,6 +51,9 @@ BenchmarkDataFrameGroupByObject   ~9.8 ms/op, 15.5 MB
 
 ## Current design
 
+- **Typed gather** (v0.4.1): DataFrame/Series Take, Slice, Head/Tail,
+  DropNA and Where materialization gather typed buffers and typed index
+  labels directly — a 100K-row numeric filter allocates 24 objects.
 - **Columnar expressions** (v0.4): Where/AssignExpr/Query evaluate over
   typed buffers with three-valued NA masks; the row-map evaluator remains
   as fallback for object columns and custom expressions.
@@ -63,8 +70,9 @@ BenchmarkDataFrameGroupByObject   ~9.8 ms/op, 15.5 MB
 
 - GroupBy still builds per-group key strings and boxes group keys
   (~500K allocs at 100K rows); a typed key-hash path is the next win.
-- Where/Query still allocate during row gathering: `Take` boxes index
-  labels (the ~260K allocs above). A typed index gather is planned.
+- Row gathering is fully typed since v0.4.1 (Take gathers column
+  buffers and index labels without boxing; RangeIndex selections with a
+  constant step stay RangeIndex, irregular ones become Int64Index).
 - Int arrays sum through a float conversion pass; direct integer
   kernels would remove the remaining gap.
 - MatMul is a straightforward ikj loop; blocked kernels or the gonum
