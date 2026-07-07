@@ -38,6 +38,18 @@ BenchmarkPositionsFromMask100K           ~0.10 ms/op, 1 alloc
 BenchmarkDropNA100K                      ~0.91 ms/op, 44 allocs
 ```
 
+Typed GroupBy engine (the v0.5 win, 100K rows):
+
+```text
+BenchmarkGroupByStringKeyMean100K   ~0.90 ms/op, 70 allocs   (v0.4.1: ~9.3 ms / ~500K allocs)
+BenchmarkGroupByStringKeySize100K   ~0.84 ms/op, 66 allocs
+BenchmarkGroupByIntKeyMean100K      ~1.1 ms/op, 45 allocs
+BenchmarkGroupByMultiKeyMean100K    ~2.9 ms/op, ~3.9K allocs (400 groups)
+BenchmarkGroupByAggList100K         ~1.2 ms/op, 88 allocs
+BenchmarkGroupByNUnique100K         ~2.0 ms/op, 89 allocs
+BenchmarkGroupByObjectFallback100K  ~4.3 ms/op, ~100K allocs
+```
+
 Typed vs object storage (the v0.3 win):
 
 ```text
@@ -45,12 +57,15 @@ BenchmarkSeriesFloatMeanTyped     ~140 µs/op, 0.8 MB   2 allocs
 BenchmarkSeriesFloatMeanObject    ~370 µs/op, 1.6 MB   3 allocs   (~2.6x slower)
 BenchmarkSeriesIntSumTyped        ~330 µs/op            (int->float conversion pass)
 BenchmarkSeriesIntSumObject       ~370 µs/op
-BenchmarkDataFrameGroupByTyped    ~9.3 ms/op, 13.9 MB
-BenchmarkDataFrameGroupByObject   ~9.8 ms/op, 15.5 MB
+BenchmarkDataFrameGroupByTyped    ~0.84 ms/op (v0.5 engine)
+BenchmarkDataFrameGroupByObject   ~1.8 ms/op
 ```
 
 ## Current design
 
+- **Typed GroupBy** (v0.5): group ids from typed key maps, segment
+  reducers over group ids, min/max/first/last as typed index-selector
+  gathers — no sub-DataFrame per group.
 - **Typed gather** (v0.4.1): DataFrame/Series Take, Slice, Head/Tail,
   DropNA and Where materialization gather typed buffers and typed index
   labels directly — a 100K-row numeric filter allocates 24 objects.
@@ -68,8 +83,8 @@ BenchmarkDataFrameGroupByObject   ~9.8 ms/op, 15.5 MB
 
 ## Known bottlenecks
 
-- GroupBy still builds per-group key strings and boxes group keys
-  (~500K allocs at 100K rows); a typed key-hash path is the next win.
+- GroupBy is typed since v0.5 (typed key maps + segment reducers);
+  only object-backed columns keep the boxed fallback.
 - Row gathering is fully typed since v0.4.1 (Take gathers column
   buffers and index labels without boxing; RangeIndex selections with a
   constant step stay RangeIndex, irregular ones become Int64Index).

@@ -227,6 +227,19 @@ def groupby():
         case("mean_two_keys", "df.groupby(['country','dept'])['salary'].mean()", ser_frame(df.groupby(["country", "dept"])["salary"].mean().reset_index())),
         case("agg_named", "df.groupby('country').agg(age_min=..., salary_max=..., salary_mean=...)", ser_frame(agg)),
         case("nunique_dept", "df.groupby('country')['dept'].nunique()", ser_frame(df.groupby("country")["dept"].nunique().reset_index())),
+        case("var_salary", "df.groupby('country')['salary'].var()", ser_frame(df.groupby("country")["salary"].var().reset_index())),
+        case("size_dropna_false", "df_na.groupby('country', dropna=False).size()", ser_frame(
+            pd.DataFrame(
+                [{"country": "AR", "v": 1.0}, {"country": None, "v": 2.0},
+                 {"country": "BR", "v": 3.0}, {"country": None, "v": 4.0}],
+                columns=["country", "v"],
+            ).groupby("country", dropna=False).size().reset_index(name="size"))),
+        case("size_dropna_true", "df_na.groupby('country', dropna=True).size()", ser_frame(
+            pd.DataFrame(
+                [{"country": "AR", "v": 1.0}, {"country": None, "v": 2.0},
+                 {"country": "BR", "v": 3.0}, {"country": None, "v": 4.0}],
+                columns=["country", "v"],
+            ).groupby("country", dropna=True).size().reset_index(name="size"))),
         case("first", "df.groupby('country')[['name']].first()", ser_frame(df.groupby("country")[["name"]].first().reset_index())),
         case("last", "df.groupby('country')[['name']].last()", ser_frame(df.groupby("country")[["name"]].last().reset_index())),
     ]

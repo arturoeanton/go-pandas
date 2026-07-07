@@ -1,5 +1,49 @@
 # Changelog
 
+## v0.5.0 - Typed GroupBy Engine
+
+### Added
+- `internal/groupby`: typed group-key builders (string, bool, time,
+  unified numeric via the float64 buffer; `%v` fallback for
+  object-backed keys) producing `GroupIDs` + per-group first rows in one
+  pass — no `fmt.Sprint`, no boxed key tuples.
+- Multi-key grouping composes per-key ids through comparable `[2]int`
+  map keys: one map entry per distinct combination, zero per-row
+  allocations.
+- Segment reducers driven by group ids: size, count, sum, mean, two-pass
+  var/std (ddof=1), median (shared scatter buffer + per-segment sort),
+  nunique (shared (group, value) sets), and min/max/first/last as
+  **row-index selectors** whose outputs gather typed — min of an int
+  column is an int column, of a time column a time column.
+- Group label columns are the key columns gathered at each group's first
+  row: key dtypes (including NA labels) survive untouched.
+- docs/groupby_engine.md; goldens for var and groupby dropna=True/False
+  (234 golden cases total).
+
+### Improved
+- `GroupBy.Agg/AggList/Sum/Mean/.../Size` no longer build a
+  sub-DataFrame per group; `Apply` and object-backed columns keep the
+  per-group fallback (same results, more allocations).
+- With sorting enabled, the NA-key group (`GroupDropNA(false)`) now
+  sorts **last**, matching pandas `dropna=False` (previously it kept its
+  first-seen position). Unsorted grouping is unchanged.
+
+### Performance (100K rows, Apple M4, measured)
+- String-key mean: ~9.3 ms / ~500K allocs → **0.90 ms / 70 allocs**.
+- Int-key mean: 1.1 ms / 45 allocs; multi-key mean (400 groups): 2.9 ms
+  / ~3.9K allocs; AggList (3 aggs): 1.2 ms / 88 allocs; nunique: 2.0 ms
+  / 89 allocs; object fallback: 4.3 ms / ~100K allocs.
+
+### Compatibility
+- All 14 pre-existing pandas groupby goldens pass unchanged on the new
+  engine; 3 new golden cases (var, size dropna=True/False) verified
+  against pandas 2.3.3.
+
+### Known limitations
+- Object-backed keys/values fall back to boxed per-group evaluation.
+- `GroupBy.Apply` still materializes per-group sub-frames by design.
+- gb.transform / gb.filter remain unimplemented.
+
 ## v0.4.1 - Typed gather and Take hardening
 
 Performance patch release: row gathering stops boxing.

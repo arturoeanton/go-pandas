@@ -105,10 +105,10 @@ Differences in behavior are documented in [known_differences.md](known_differenc
 
 | pandas API | go-pandas API | Status | Notes |
 |---|---|---|---|
-| df.groupby(keys) | df.GroupBy(keys...) / GroupByOpts | done | GroupSort / GroupDropNA options |
+| df.groupby(keys) | df.GroupBy(keys...) / GroupByOpts | done | typed engine (v0.5); GroupSort / GroupDropNA; multi-key; dropna=False NA group sorts last |
 | gb.size()/count() | gb.Size() / gb.Count(cols...) | done | |
-| gb.sum/mean/median/min/max/std/var | same names | done | NA-skipping |
-| gb.first()/last()/nunique() | gb.First/Last/NUnique | done | |
+| gb.sum/mean/median/min/max/std/var | same names | done | segment reducers; NA-skipping; ddof=1 |
+| gb.first()/last()/nunique() | gb.First/Last/NUnique | done | typed index-selector gather |
 | gb.agg({...}) | gb.Agg(map) / gb.AggList(map) | partial | column_agg naming, sorted column order |
 | gb.apply(fn) | gb.Apply(fn) | partial | |
 | gb.transform / gb.filter | — | planned | |

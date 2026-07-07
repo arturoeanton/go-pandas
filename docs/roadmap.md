@@ -1,6 +1,14 @@
 # Roadmap
 
-## v0.4.1 (this release) — typed gather
+## v0.5 (this release) — typed GroupBy engine
+
+- Group ids from typed key maps (string/bool/time/unified-numeric),
+  pairwise [2]int composition for multi-key, segment reducers for every
+  aggregation, min/max/first/last as typed index-selector gathers, NA
+  key group sorted last (pandas dropna=False parity). 100K-row group
+  means drop from ~500K to ~70 allocations.
+
+## v0.4.1 — typed gather
 
 - DataFrame/Series/Index Take without boxing: typed column buffers,
   Int64Index for irregular integer selections, RangeIndex preserved for
@@ -51,7 +59,7 @@
 
 ## v0.6 — performance backends
 
-- Integer compute kernels (skip the float64 pass); typed groupby keys.
+- Integer compute kernels (skip the float64 pass).
 - Arrow interchange; Parquet and DuckDB adapters; gonum linalg adapter
   (det/inv/solve/eig/SVD).
 - Optional SIMD kernels.

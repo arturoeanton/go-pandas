@@ -106,6 +106,13 @@ falls back to a boxed index with missing labels.
 column order is: group keys, then aggregations sorted by source column
 name (pandas follows keyword order in named aggregation).
 
+Since v0.5 grouping runs on the typed engine (docs/groupby_engine.md):
+numeric key widths group together (1 == 1.0), object-backed keys keep
+the historical `%v` grouping, and with sorting enabled the NA-key group
+(dropna=false) sorts **last**, matching pandas — before v0.5 it kept its
+first-seen position. `std`/`var` remain ddof=1; `median` returns
+float64; bool value columns aggregate as 0/1 numerics.
+
 ## Rounding
 
 `Round` uses banker's rounding (half to even) on both Series and

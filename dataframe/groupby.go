@@ -3,11 +3,9 @@ package dataframe
 import (
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/arturoeanton/go-pandas/dtype"
 	"github.com/arturoeanton/go-pandas/errs"
-	"github.com/arturoeanton/go-pandas/expr"
 	"github.com/arturoeanton/go-pandas/series"
 )
 
@@ -50,62 +48,9 @@ func (df *DataFrame) GroupByOpts(opts []GroupByOption, keys ...string) *GroupBy 
 	return gb
 }
 
-// group is one bucket: the key values and its member row positions.
-type group struct {
-	keyValues []any
-	rows      []int
-}
-
-// buildGroups hash-groups rows by key tuple, preserving first-seen order.
-func (gb *GroupBy) buildGroups() ([]group, error) {
-	if gb.err != nil {
-		return nil, gb.err
-	}
-	keyCols := make([][]any, len(gb.keys))
-	for k, name := range gb.keys {
-		c, _ := gb.df.Col(name)
-		keyCols[k] = c.Values()
-	}
-	byKey := make(map[string]int)
-	var groups []group
-	for i := 0; i < gb.df.Len(); i++ {
-		var sb strings.Builder
-		hasNA := false
-		keyValues := make([]any, len(gb.keys))
-		for k := range gb.keys {
-			v := keyCols[k][i]
-			if dtype.IsNA(v) {
-				hasNA = true
-			}
-			keyValues[k] = v
-			sb.WriteString(fmt.Sprintf("%v\x00", v))
-		}
-		if hasNA && gb.dropNA {
-			continue
-		}
-		key := sb.String()
-		gi, ok := byKey[key]
-		if !ok {
-			gi = len(groups)
-			byKey[key] = gi
-			groups = append(groups, group{keyValues: keyValues})
-		}
-		groups[gi].rows = append(groups[gi].rows, i)
-	}
-	if gb.sort {
-		sort.SliceStable(groups, func(a, b int) bool {
-			for k := range gb.keys {
-				c, ok := expr.CompareValues(groups[a].keyValues[k], groups[b].keyValues[k])
-				if !ok || c == 0 {
-					continue
-				}
-				return c < 0
-			}
-			return false
-		})
-	}
-	return groups, nil
-}
+// Grouping runs on the typed engine (v0.5): group ids are built once
+// from typed key buffers (internal/groupby) and aggregations reduce in
+// segments over those ids — see groupby_typed.go.
 
 // valueColumns resolves the aggregation targets: the requested columns, or
 // every non-key column (numeric-only when numericOnly).
@@ -192,44 +137,18 @@ type aggSpec struct {
 }
 
 // runAgg executes a list of aggregation specs and assembles the result
-// frame: key columns first, then one column per spec.
+// frame: typed key label columns first, then one column per spec (v0.5
+// segment reducers; object-backed columns keep the boxed fallback).
 func (gb *GroupBy) runAgg(specs []aggSpec) (*DataFrame, error) {
-	groups, err := gb.buildGroups()
+	gp, err := gb.buildPlan()
 	if err != nil {
 		return nil, err
 	}
-	keyData := make([][]any, len(gb.keys))
-	for k := range keyData {
-		keyData[k] = make([]any, len(groups))
+	out, err := gb.assembleAgg(gp, specs)
+	if err != nil {
+		return nil, fmt.Errorf("aggregating: %w", err)
 	}
-	outData := make([][]any, len(specs))
-	for j := range outData {
-		outData[j] = make([]any, len(groups))
-	}
-	for gi, g := range groups {
-		for k := range gb.keys {
-			keyData[k][gi] = g.keyValues[k]
-		}
-		for j, spec := range specs {
-			c, err := gb.df.Col(spec.column)
-			if err != nil {
-				return nil, err
-			}
-			v, err := aggValue(c, g.rows, spec.agg)
-			if err != nil {
-				return nil, fmt.Errorf("aggregating %s(%s): %w", spec.agg, spec.column, err)
-			}
-			outData[j][gi] = v
-		}
-	}
-	var cols []*series.Series
-	for k, name := range gb.keys {
-		cols = append(cols, series.NewSeries(name, keyData[k]))
-	}
-	for j, spec := range specs {
-		cols = append(cols, series.NewSeries(spec.outName, outData[j]))
-	}
-	return newFrame(cols, nil)
+	return out, nil
 }
 
 // simpleAgg applies one aggregation to the given (or all applicable)
@@ -254,27 +173,11 @@ func (gb *GroupBy) Count(columns ...string) (*DataFrame, error) {
 
 // Size returns the number of rows per group in a "size" column.
 func (gb *GroupBy) Size() (*DataFrame, error) {
-	groups, err := gb.buildGroups()
+	gp, err := gb.buildPlan()
 	if err != nil {
 		return nil, err
 	}
-	keyData := make([][]any, len(gb.keys))
-	for k := range keyData {
-		keyData[k] = make([]any, len(groups))
-	}
-	sizes := make([]any, len(groups))
-	for gi, g := range groups {
-		for k := range gb.keys {
-			keyData[k][gi] = g.keyValues[k]
-		}
-		sizes[gi] = len(g.rows)
-	}
-	var cols []*series.Series
-	for k, name := range gb.keys {
-		cols = append(cols, series.NewSeries(name, keyData[k]))
-	}
-	cols = append(cols, series.NewSeries("size", sizes))
-	return newFrame(cols, nil)
+	return gb.sizeFrame(gp)
 }
 
 // Sum sums numeric columns per group.
@@ -352,13 +255,14 @@ func (gb *GroupBy) AggList(spec map[string][]string) (*DataFrame, error) {
 // Apply runs a function over each group's sub-frame and vertically
 // concatenates the results.
 func (gb *GroupBy) Apply(fn func(*DataFrame) (*DataFrame, error)) (*DataFrame, error) {
-	groups, err := gb.buildGroups()
+	gp, err := gb.buildPlan()
 	if err != nil {
 		return nil, err
 	}
+	rows := gp.groupRows()
 	var frames []*DataFrame
-	for _, g := range groups {
-		sub, err := gb.df.Take(g.rows)
+	for _, g := range gp.order {
+		sub, err := gb.df.Take(rows[g])
 		if err != nil {
 			return nil, err
 		}

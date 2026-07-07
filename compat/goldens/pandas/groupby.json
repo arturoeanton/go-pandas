@@ -237,6 +237,70 @@
    }
   },
   {
+   "name": "var_salary",
+   "operation": "df.groupby('country')['salary'].var()",
+   "expected": {
+    "columns": [
+     "country",
+     "salary"
+    ],
+    "rows": [
+     [
+      "AR",
+      413333.3333333334
+     ],
+     [
+      "BR",
+      45000.0
+     ]
+    ]
+   }
+  },
+  {
+   "name": "size_dropna_false",
+   "operation": "df_na.groupby('country', dropna=False).size()",
+   "expected": {
+    "columns": [
+     "country",
+     "size"
+    ],
+    "rows": [
+     [
+      "AR",
+      1
+     ],
+     [
+      "BR",
+      1
+     ],
+     [
+      null,
+      2
+     ]
+    ]
+   }
+  },
+  {
+   "name": "size_dropna_true",
+   "operation": "df_na.groupby('country', dropna=True).size()",
+   "expected": {
+    "columns": [
+     "country",
+     "size"
+    ],
+    "rows": [
+     [
+      "AR",
+      1
+     ],
+     [
+      "BR",
+      1
+     ]
+    ]
+   }
+  },
+  {
    "name": "first",
    "operation": "df.groupby('country')[['name']].first()",
    "expected": {

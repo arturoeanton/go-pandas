@@ -13,9 +13,11 @@
 go-pandas is a compatibility-oriented data toolkit: pandas-style
 `DataFrame`/`Series` and NumPy-style `NDArray` with the same concepts,
 names and behavior — verified against **golden outputs generated from
-real pandas and NumPy** (231 test cases, pandas 2.3 / NumPy 2.0).
+real pandas and NumPy** (234 test cases, pandas 2.3 / NumPy 2.0).
 
-Since v0.4, `Where`/`AssignExpr`/`Query` run on a **columnar expression
+Since v0.5, `GroupBy` runs on a **typed engine** (typed key maps +
+segment reducers — a 100K-row group-mean takes ~0.9 ms with 70
+allocations, ~10x faster than v0.4). Since v0.4, `Where`/`AssignExpr`/`Query` run on a **columnar expression
 engine**: typed kernels over column buffers instead of a map per row
 (a 100K-row numeric filter runs in ~0.9 ms with 24 allocations —
 ~20x faster than the row-map path; `pd.DebugPlan` shows the chosen path). Since v0.3 storage is **typed**: `pd.ArrayInt` really stores `[]int`,

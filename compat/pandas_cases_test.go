@@ -33,6 +33,15 @@ func dateSeries() *pd.Series {
 	})
 }
 
+func naKeyFrame() (*pd.DataFrame, error) {
+	return pd.DataFrameFromRecords([]map[string]any{
+		{"country": "AR", "v": 1.0},
+		{"country": nil, "v": 2.0},
+		{"country": "BR", "v": 3.0},
+		{"country": nil, "v": 4.0},
+	}, pd.WithColumnOrder("country", "v"))
+}
+
 func shopFrame(t *testing.T) *pd.DataFrame {
 	t.Helper()
 	df, err := pd.DataFrameFromRecords([]map[string]any{
@@ -223,6 +232,23 @@ var pandasCases = map[string]caseFn{
 	},
 	"nunique_dept": func(t *testing.T) (any, error) {
 		return peopleFrame(t).GroupBy("country").NUnique("dept")
+	},
+	"var_salary": func(t *testing.T) (any, error) {
+		return peopleFrame(t).GroupBy("country").Var("salary")
+	},
+	"size_dropna_false": func(t *testing.T) (any, error) {
+		df, err := naKeyFrame()
+		if err != nil {
+			return nil, err
+		}
+		return df.GroupByOpts([]pd.GroupByOption{pd.GroupDropNA(false)}, "country").Size()
+	},
+	"size_dropna_true": func(t *testing.T) (any, error) {
+		df, err := naKeyFrame()
+		if err != nil {
+			return nil, err
+		}
+		return df.GroupBy("country").Size()
 	},
 	"first": func(t *testing.T) (any, error) {
 		return peopleFrame(t).GroupBy("country").First("name")
